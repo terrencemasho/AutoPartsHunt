@@ -1,0 +1,194 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  font-size: 1rem;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(180deg, #f0f8ff 0%, #c5e3f6 40%, #8ecae6 100%);
+}
+
+.container {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 40px;
+  border-radius: 12px;
+  width: 400px;
+  max-width: 90%;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 20px;
+  font-weight: bold;
+  font-size: 34px;
+  color: orange;
+}
+
+.top-buttons {
+  display: flex;
+  margin-bottom: 20px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #ddd;
+}
+
+.top-buttons button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  cursor: pointer;
+  background: #f3f3f3;
+  font-weight: bold;
+  transition: 0.3s;
+}
+
+.top-buttons button.active {
+  background: #007bff;
+  color: white;
+}
+
+form {
+  display: none;
+  animation: fade 0.3s ease;
+}
+
+form.active {
+  display: block;
+}
+
+.input-group {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.input-group i {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #777;
+  pointer-events: none;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 10px 10px 10px 40px; /* left padding for icon */
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  outline: none;
+  color: #333;
+  font-size: 15px;
+}
+
+input::placeholder,
+select option:first-child {
+  color: #555;
+}
+
+input:focus,
+select:focus {
+  border-color: #007bff;
+  border-width: 2px;
+}
+
+.submit-btn {
+  width: 100%;
+  padding: 11px;
+  border: none;
+  border-radius: 15px;
+  background: #007bff;
+  color: white;
+  font-size: 15px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.submit-btn:hover {
+  background: #0056b3;
+  transform: translateY(-1px);
+}
+
+.forgot-password {
+  text-align: center;
+  margin-bottom: 15px;
+  font-size: 13px;
+}
+
+.forgot-password a {
+  color: #007bff;
+  text-decoration: none;
+}
+
+.forgot-password a:hover {
+  text-decoration: underline;
+}
+
+.error-message {
+  color: #dc3545;
+  font-size: 13px;
+  margin-bottom: 10px;
+  display: none;
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* FIXED: Consolidated mobile styles - single media query */
+@media (max-width: 500px) {
+  .container {
+    padding: 25px;
+  }
+  .header {
+    font-size: 28px; /* slightly smaller but readable */
+  }
+  .top-buttons button {
+    padding: 8px;
+    font-size: 14px;
+  }
+  .input-group i {
+    left: 12px;
+    font-size: 14px;
+  }
+  input,
+  select {
+    padding: 12px 12px 12px 42px; /* increased padding, kept left space for icon */
+    font-size: 16px; /* prevent zoom on iOS */
+  }
+  .submit-btn {
+    padding: 12px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 320px) {
+  .container {
+    width: 95%;
+    padding: 20px;
+  }
+  .header {
+    font-size: 24px;
+  }
+  input,
+  select {
+    padding: 10px 10px 10px 38px; /* slightly less but still safe */
+  }
+  .input-group i {
+    left: 10px;
+    font-size: 13px;
+  }
+}

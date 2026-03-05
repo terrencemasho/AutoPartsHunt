@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AutoParts - Authentication</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css "/>
+    <link rel="stylesheet" href="style.css">
+
+  </head>
+
+  <body>
+    <div class="container">
+      <div class="header">AutoParts System</div>
+
+      <div class="top-buttons">
+        <button id="loginBtn" class="active" onclick="showLogin()">
+          Login
+        </button>
+        <button id="signupBtn" onclick="showSignup()">Signup</button>
+      </div>
+
+      <!-- LOGIN FORM -->
+      <form id="loginForm" class="active" action="/login" method="POST">
+        <div class="error-message" id="loginError">
+          Invalid phone or password
+        </div>
+
+        <div class="input-group">
+          <i class="fa fa-phone"></i>
+          <input type="text" name="phone" placeholder="Phone" required />
+        </div>
+
+        <div class="input-group">
+          <i class="fa fa-lock"></i>
+          <input
+            type="password"
+            name="password"
+            placeholder="Password"
+            required
+          />
+        </div>
+
+        <div class="forgot-password">
+          <a href="#" onclick="alert('Contact admin to reset password')"
+            >Forgot password?</a
+          >
+        </div>
+
+        <button class="submit-btn" type="submit">Login</button>
+      </form>
+
+      <!-- SIGNUP FORM -->
+      <form id="signupForm" action="/signup" method="POST">
+        <div class="error-message" id="signupError">
+          Please check your information
+        </div>
+
+        <div class="input-group">
+          <i class="fa fa-user"></i>
+          <input
+            type="text"
+            name="firstname"
+            placeholder="First Name"
+            required
+          />
+        </div>
+
+        <div class="input-group">
+          <i class="fa fa-user"></i>
+          <input type="text" name="lastname" placeholder="Last Name" required />
+        </div>
+
+        <div class="input-group">
+          <i class="fa fa-phone"></i>
+          <input type="text" name="phone" placeholder="Phone" required />
+        </div>
+
+        <div class="input-group">
+          <i class="fa fa-envelope"></i>
+          <input type="email" name="email" placeholder="Email" required />
+        </div>
+
+        <div class="input-group">
+          <i class="fa fa-lock"></i>
+          <input
+            type="password"
+            name="password"
+            placeholder="Password"
+            required
+          />
+        </div>
+
+        <div class="input-group">
+          <i class="fa fa-lock"></i>
+          <input
+            type="password"
+            name="confirm_password"
+            placeholder="Confirm Password"
+            required
+          />
+        </div>
+
+        <div class="input-group">
+          <i class="fa fa-user-gear"></i>
+          <select name="role">
+            <option value="">Select Role</option>
+            <option value="customer">Customer</option>
+            <option value="mechanic">Mechanic</option>
+            <option value="shopkeeper">Shopkeeper</option>
+          </select>
+        </div>
+
+        <button class="submit-btn" type="submit">Signup</button>
+      </form>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
