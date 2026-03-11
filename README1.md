@@ -2,9 +2,17 @@
 
 > A web-based marketplace for buying and selling automobile spare parts across Pakistan.
 
-**Team:** The Recursives — BS CS 3rd Semester  
-**IDs:** 2025(S)-CS-33, 2025(S)-CS-03, 2025(S)-CS-24, 2025(S)-CS-25, 2025(S)-CS-32  
+**Team:** The Recursives — BS CS 3rd Semester
+**IDs:** 2025(S)-CS-33, 2025(S)-CS-03, 2025(S)-CS-24, 2025(S)-CS-25, 2025(S)-CS-32
 **Course:** Software Engineering — IDEAL Labs
+
+---
+
+## 🌐 Live Demo
+
+> **https://auto-parts-hunt.vercel.app**
+
+Hosted on Vercel — permanent URL, live 24/7, no local machine required.
 
 ---
 
@@ -15,16 +23,16 @@ Auto Parts Hunt connects car owners with spare parts shopkeepers across Pakistan
 **Tech Stack:**
 - Frontend: HTML5, CSS3, Vanilla JavaScript
 - Backend: Supabase (PostgreSQL + REST API)
-- Tunneling: ngrok
-- Local Server: npx serve
+- Hosting: Vercel (static deployment)
+- Source Control: GitHub
 
 ---
 
 ## Folder Structure
 ```
-Auto Parts/
+AutoPartsHunt/
 ├── app_state.js          ← Shared DB + Auth module (imported by every page)
-├── Landing Page/
+├── Landing/
 │   ├── landing_Page.HTML
 │   ├── style.css
 │   └── script.js
@@ -42,7 +50,7 @@ Auto Parts/
 │   ├── admin_dashboard.HTML
 │   ├── admin2_style.css
 │   └── admin2_script.js
-├── track order/
+├── track/
 │   ├── track_order.HTML
 │   ├── track_style.css
 │   └── track_script.js
@@ -56,25 +64,18 @@ Auto Parts/
 
 ### Requirements
 - [Node.js](https://nodejs.org) installed
-- [ngrok](https://ngrok.com) account + authtoken configured
 
-### Step 1 — Serve the files
+### Step 1 — Clone the repo
 ```bash
-npx serve "Auto Parts" -l 3000
+git clone https://github.com/terrencemasho/AutoPartsHunt.git
+cd AutoPartsHunt
+```
+
+### Step 2 — Serve the files
+```bash
+npx serve AutoPartsHunt -l 3000
 ```
 App is now running at `http://localhost:3000`
-
-### Step 2 — Open a public tunnel (new terminal)
-```bash
-ngrok http 3000
-```
-ngrok will print a public HTTPS URL like:
-```
-Forwarding: https://sandless-dan-guitarlike.ngrok-free.dev → http://localhost:3000
-```
-
-### Step 3 — Monitor requests
-Open `http://127.0.0.1:4040` in your browser to see live HTTP logs.
 
 ---
 
@@ -94,7 +95,6 @@ Open `http://127.0.0.1:4040` in your browser to see live HTTP logs.
 
 Project URL: `https://vfvouexomhdwvmyleqgt.supabase.co`
 
-**Tables:**
 | Table | Purpose |
 |-------|---------|
 | `users` | All registered users (customers, shopkeepers, admin) |
