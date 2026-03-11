@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Customer Dashboard — Auto Parts Hunt</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="dashboard_style.css" />
+  </head>
+  <body>
+
+    <!-- ══ SIDEBAR ══ -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <span class="logo-auto">AUTO</span><span class="logo-parts">PARTS</span><br/>
+        <span class="logo-hunt">HUNT</span>
+      </div>
+
+      <div class="sidebar-user">
+        <div class="avatar" id="sidebarAv">--</div>
+        <div class="user-info">
+          <span class="user-name" id="sidebarName">Loading...</span>
+          <span class="user-role">Customer</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" onclick="showSection('browse',this)">
+          <span class="nav-icon">🔍</span> Browse Parts
+        </a>
+        <a href="#" class="nav-item" onclick="showSection('orders',this)">
+          <span class="nav-icon">📦</span> My Orders
+        </a>
+        <a href="#" class="nav-item" onclick="showSection('wishlist',this)">
+          <span class="nav-icon">❤️</span> Wishlist
+          <span class="badge" id="wishBadge">0</span>
+        </a>
+        <a href="#" class="nav-item" onclick="showSection('track',this)">
+          <span class="nav-icon">🚚</span> Track Order
+        </a>
+        <a href="#" class="nav-item" onclick="showSection('reviews',this)">
+          <span class="nav-icon">⭐</span> My Reviews
+        </a>
+        <a href="#" class="nav-item" onclick="showSection('profile',this)">
+          <span class="nav-icon">👤</span> Profile
+        </a>
+      </nav>
+
+      <button class="logout-btn" onclick="confirmLogout()">
+        <span>⏻</span> Logout
+      </button>
+    </aside>
+
+    <!-- ══ MAIN ══ -->
+    <main class="main-content">
+
+      <!-- TOPBAR -->
+      <div class="topbar">
+        <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+        <div class="topbar-title" id="topbarTitle">Browse Parts</div>
+        <div class="topbar-right">
+          <button class="cart-btn" onclick="showSection('cart',null)">
+            🛒 Cart
+            <span class="cart-count" id="cartCount">0</span>
+          </button>
+          <div class="topbar-avatar" id="topbarAv">--</div>
+        </div>
+      </div>
+
+      <!-- ══ BROWSE ══ -->
+      <section class="section active" id="sec-browse">
+
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-val orange" id="stat-orders">0</div><div class="stat-lbl">Orders Placed</div></div>
+          <div class="stat-card"><div class="stat-val" id="stat-active">0</div><div class="stat-lbl">Active Orders</div></div>
+          <div class="stat-card"><div class="stat-val orange" id="stat-spent">PKR 0</div><div class="stat-lbl">Total Spent</div></div>
+          <div class="stat-card"><div class="stat-val" id="stat-wish">0</div><div class="stat-lbl">Wishlist Items</div></div>
+        </div>
+
+        <div class="search-panel">
+          <div class="search-row">
+            <div class="s-field grow">
+              <label>SEARCH PARTS</label>
+              <input type="text" id="searchInput" placeholder="e.g. Brake Pad, Oil Filter..." oninput="filterParts()"/>
+            </div>
+            <div class="s-field">
+              <label>VEHICLE MAKE</label>
+              <select id="filterMake" onchange="filterParts()">
+                <option value="">All Makes</option>
+                <option>Toyota</option><option>Honda</option>
+                <option>Suzuki</option><option>Hyundai</option>
+                <option>Kia</option><option>Nissan</option>
+              </select>
+            </div>
+            <div class="s-field">
+              <label>CATEGORY</label>
+              <select id="filterCat" onchange="filterParts()">
+                <option value="">All Categories</option>
+                <option>Engine</option><option>Brakes</option>
+                <option>Electrical</option><option>Suspension</option>
+                <option>Tyres</option><option>Body Parts</option>
+                <option>Cooling</option><option>Fuel System</option>
+              </select>
+            </div>
+            <div class="s-field">
+              <label>SORT BY</label>
+              <select id="sortBy" onchange="filterParts()">
+                <option value="">Default</option>
+                <option value="price-asc">Price: Low → High</option>
+                <option value="price-desc">Price: High → Low</option>
+                <option value="name">Name A–Z</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-heading">
+          <div>
+            <div class="tag">CATALOGUE</div>
+            <h2 class="sec-title">AVAILABLE PARTS</h2>
+          </div>
+          <div class="result-count" id="resultCount"></div>
+        </div>
+
+        <div class="parts-grid" id="partsGrid"></div>
+
+        <div class="empty-state" id="emptyState" style="display:none;">
+          <div class="empty-icon">⚙️</div>
+          <h3>No parts available yet</h3>
+          <p>Shops haven't listed any parts yet. Check back soon!</p>
+        </div>
+
+      </section>
+
+      <!-- ══ CART ══ -->
+      <section class="section" id="sec-cart">
+        <div class="section-heading">
+          <div>
+            <div class="tag">CHECKOUT</div>
+            <h2 class="sec-title">YOUR CART</h2>
+          </div>
+          <button class="outline-btn" onclick="showSection('browse',null)">← Continue Shopping</button>
+        </div>
+
+        <div class="cart-layout">
+          <div class="cart-items" id="cartItems"></div>
+
+          <div class="cart-summary" id="cartSummary" style="display:none;">
+            <div class="summary-card">
+              <h3 class="summary-title">ORDER SUMMARY</h3>
+              <div class="summary-row"><span>Subtotal</span><span id="subtotal">PKR 0</span></div>
+              <div class="summary-row"><span>Delivery</span><span>PKR 200</span></div>
+              <div class="summary-divider"></div>
+              <div class="summary-row total"><span>TOTAL</span><span id="totalPrice" class="orange">PKR 200</span></div>
+              <button class="orange-btn full-btn" onclick="placeOrder()">Place Order →</button>
+              <button class="outline-btn full-btn mt8" onclick="clearCart()">Clear Cart</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══ ORDERS ══ -->
+      <section class="section" id="sec-orders">
+        <div class="section-heading">
+          <div>
+            <div class="tag">HISTORY</div>
+            <h2 class="sec-title">MY ORDERS</h2>
+          </div>
+        </div>
+        <div id="ordersList"></div>
+      </section>
+
+      <!-- ══ WISHLIST ══ -->
+      <section class="section" id="sec-wishlist">
+        <div class="section-heading">
+          <div>
+            <div class="tag">SAVED</div>
+            <h2 class="sec-title">MY WISHLIST</h2>
+          </div>
+        </div>
+        <div class="parts-grid" id="wishlistGrid"></div>
+      </section>
+
+      <!-- ══ TRACK ══ -->
+      <section class="section" id="sec-track">
+        <div class="section-heading">
+          <div>
+            <div class="tag">REAL-TIME</div>
+            <h2 class="sec-title">TRACK ORDER</h2>
+          </div>
+        </div>
+
+        <div class="track-search-box">
+          <div class="s-field grow">
+            <label>ENTER ORDER ID</label>
+            <input type="text" id="trackInput" placeholder="e.g. ORD-1234567890"/>
+          </div>
+          <button class="orange-btn" onclick="doTrack()">⌕ TRACK NOW</button>
+        </div>
+
+        <div id="trackResult"></div>
+      </section>
+
+      <!-- ══ REVIEWS ══ -->
+      <section class="section" id="sec-reviews">
+        <div class="section-heading">
+          <div>
+            <div class="tag">FEEDBACK</div>
+            <h2 class="sec-title">MY REVIEWS</h2>
+          </div>
+        </div>
+        <div id="myReviewsList"></div>
+      </section>
+
+      <!-- ══ PROFILE ══ -->
+      <section class="section" id="sec-profile">
+        <div class="section-heading">
+          <div>
+            <div class="tag">ACCOUNT</div>
+            <h2 class="sec-title">MY PROFILE</h2>
+          </div>
+        </div>
+        <div class="profile-card">
+          <div class="profile-avatar-lg" id="profileAv">--</div>
+          <div class="profile-details">
+            <div class="profile-row"><label>FULL NAME</label><input type="text" id="pf-name" readonly style="background:#f8f8f8;"/></div>
+            <div class="profile-row"><label>EMAIL</label><input type="email" id="pf-email" readonly style="background:#f8f8f8;"/></div>
+            <div class="profile-row"><label>PHONE</label><input type="tel" id="pf-phone"/></div>
+            <div class="profile-row"><label>CITY</label><input type="text" id="pf-city" readonly style="background:#f8f8f8;"/></div>
+            <div class="profile-row full"><label>ADDRESS</label><input type="text" id="pf-address" placeholder="Your delivery address..."/></div>
+            <div class="profile-btns">
+              <button class="orange-btn" onclick="saveProfile()">Save Changes</button>
+              <button class="outline-btn" onclick="confirmLogout()">Logout</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+
+    <!-- REVIEW MODAL -->
+    <div class="modal-overlay" id="reviewModal" style="display:none;">
+      <div class="modal-box" style="max-width:480px;width:94%;padding:40px 36px;">
+        <div style="font-size:36px;margin-bottom:8px;">⭐</div>
+        <h3 class="modal-title" style="margin-bottom:4px;">LEAVE A REVIEW</h3>
+        <p style="font-size:13px;color:#888;margin-bottom:24px;" id="rv-partLabel">How was your order?</p>
+
+        <!-- Star Rating -->
+        <div style="display:flex;justify-content:center;gap:8px;margin-bottom:20px;" id="starRow">
+          <span class="rv-star" data-v="1" onclick="setRating(1)" style="font-size:36px;cursor:pointer;transition:transform 0.1s;">☆</span>
+          <span class="rv-star" data-v="2" onclick="setRating(2)" style="font-size:36px;cursor:pointer;transition:transform 0.1s;">☆</span>
+          <span class="rv-star" data-v="3" onclick="setRating(3)" style="font-size:36px;cursor:pointer;transition:transform 0.1s;">☆</span>
+          <span class="rv-star" data-v="4" onclick="setRating(4)" style="font-size:36px;cursor:pointer;transition:transform 0.1s;">☆</span>
+          <span class="rv-star" data-v="5" onclick="setRating(5)" style="font-size:36px;cursor:pointer;transition:transform 0.1s;">☆</span>
+        </div>
+        <p style="font-size:12px;color:#E84800;font-weight:700;text-align:center;min-height:18px;margin-bottom:16px;" id="rv-ratingLabel"></p>
+
+        <!-- Comment -->
+        <div style="text-align:left;margin-bottom:20px;">
+          <label style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#aaa;text-transform:uppercase;display:block;margin-bottom:6px;">YOUR COMMENT (optional)</label>
+          <textarea id="rv-comment" rows="3" placeholder="Share your experience with this part..." style="width:100%;padding:12px 14px;border:1.5px solid #e5e5e5;border-radius:8px;font-family:Poppins,sans-serif;font-size:14px;color:#333;resize:vertical;outline:none;transition:border 0.2s;" onfocus="this.style.borderColor='#E84800'" onblur="this.style.borderColor='#e5e5e5'"></textarea>
+        </div>
+
+        <div class="modal-btns">
+          <button class="outline-btn" onclick="skipReview()">Skip</button>
+          <button class="orange-btn" onclick="submitReview()">Submit Review →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOGOUT MODAL -->
+    <div class="modal-overlay" id="logoutModal" style="display:none;">
+      <div class="modal-box">
+        <div class="modal-icon">⏻</div>
+        <h3 class="modal-title">LOGOUT?</h3>
+        <p class="modal-desc">Are you sure you want to log out?</p>
+        <div class="modal-btns">
+          <button class="outline-btn" onclick="closeModal()">Cancel</button>
+          <button class="orange-btn" onclick="doLogout()">Yes, Logout</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="/app_state.js"></script>
+    <script src="dashboard_script.js"></script>
+  </body>
+</html>

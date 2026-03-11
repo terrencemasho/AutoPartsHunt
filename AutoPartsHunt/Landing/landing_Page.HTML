@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auto Parts Home</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+
+    <!-- ── HEADER ── -->
+    <header>
+      <div class="logo">
+        <img src="Logo.png" alt="AutoParts Logo" />
+      </div>
+      <nav class="link">
+        <a href="/contact/contact.html">Contact Us</a>
+        <a href="#">About Us</a>
+        <a href="/Login/login.HTML">Signup</a>
+      </nav>
+      <div class="hamburger" onclick="toggleMenu()">☰</div>
+    </header>
+
+    <!-- ── HERO ── -->
+    <div class="container">
+      <div class="info">
+        <h2 class="hero-title">Find the Perfect Auto Parts for Your Vehicle</h2>
+        <p>
+          Autoparts is your trusted digital marketplace for vehicle parts,
+          bringing convenience, reliability, and choice to drivers, mechanics,
+          and enthusiasts alike.
+        </p>
+        <div class="hero-btns">
+          <button class="shop-btn" onclick="location.href='/Login/login.HTML'">Start Shopping →</button>
+          <button class="outline-btn" onclick="location.href='/Login/login.HTML'">Join Free</button>
+        </div>
+      </div>
+      <div class="img">
+        <img
+          src="https://st2.depositphotos.com/1005404/42688/i/450/depositphotos_426885798-stock-photo-wheel-many-other-car-parts.jpg"
+          alt="Auto Parts"
+        />
+      </div>
+    </div>
+
+    <!-- ── SEARCH SECTION ── -->
+    <section class="search-section">
+      <div class="search-box">
+        <div class="search-field">
+          <label>PART NAME / NUMBER</label>
+          <input type="text" placeholder="e.g. Oil Filter, Brake Pad..." />
+        </div>
+        <div class="search-field">
+          <label>VEHICLE MAKE</label>
+          <select>
+            <option>All Makes</option>
+            <option>Toyota</option>
+            <option>Honda</option>
+            <option>Suzuki</option>
+            <option>Hyundai</option>
+          </select>
+        </div>
+        <div class="search-field">
+          <label>CATEGORY</label>
+          <select>
+            <option>All Categories</option>
+            <option>Engine Parts</option>
+            <option>Brake System</option>
+            <option>Electrical</option>
+            <option>Suspension</option>
+          </select>
+        </div>
+        <button class="search-btn" onclick="location.href='/Login/login.HTML'">⌕ SEARCH</button>
+      </div>
+    </section>
+
+    <!-- ── STATS BAR ── -->
+    <section class="stats-bar">
+      <div class="stat-item">
+        <div class="stat-num">50<span class="stat-suffix">K+</span></div>
+        <div class="stat-label">PARTS LISTED</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">1.2<span class="stat-suffix">K</span></div>
+        <div class="stat-label">VERIFIED SHOPS</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">98<span class="stat-suffix">%</span></div>
+        <div class="stat-label">CUSTOMER SATISFACTION</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">24<span class="stat-suffix">H</span></div>
+        <div class="stat-label">AVERAGE DELIVERY</div>
+      </div>
+    </section>
+
+    <!-- ── HOW IT WORKS ── -->
+    <section class="how-section">
+      <div class="section-tag">SIMPLE PROCESS</div>
+      <h2 class="section-title">HOW IT WORKS</h2>
+      <div class="steps-grid">
+
+        <div class="step">
+          <div class="step-num-box">01</div>
+          <div class="step-connector"></div>
+          <h3 class="step-title">SEARCH THE PART</h3>
+          <p class="step-desc">Enter part name, number, or browse by your vehicle make and model.</p>
+        </div>
+
+        <div class="step">
+          <div class="step-num-box">02</div>
+          <div class="step-connector"></div>
+          <h3 class="step-title">COMPARE PRICES</h3>
+          <p class="step-desc">View listings from multiple verified shops and compare prices side-by-side.</p>
+        </div>
+
+        <div class="step">
+          <div class="step-num-box">03</div>
+          <div class="step-connector"></div>
+          <h3 class="step-title">PLACE ORDER</h3>
+          <p class="step-desc">Order securely with multiple payment options available.</p>
+        </div>
+
+        <div class="step last-step">
+          <div class="step-num-box">04</div>
+          <h3 class="step-title">TRACK &amp; RECEIVE</h3>
+          <p class="step-desc">Get real-time updates and receive your part at home.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── WHO IS IT FOR ── -->
+    <section class="who-section">
+      <div class="section-tag">BUILT FOR EVERYONE</div>
+      <h2 class="section-title left">WHO IS IT FOR?</h2>
+      <div class="who-grid">
+
+        <!-- Vehicle Owners -->
+        <div class="who-card">
+          <div class="who-icon">🚗</div>
+          <h3 class="who-title">VEHICLE OWNERS</h3>
+          <p class="who-desc">Find genuine parts without visiting multiple shops.</p>
+          <ul class="who-list">
+            <li>Search by vehicle model</li>
+            <li>Compare prices instantly</li>
+            <li>Read verified reviews</li>
+            <li>Doorstep delivery</li>
+          </ul>
+        </div>
+
+        <!-- Mechanics -->
+        <div class="who-card">
+          <div class="who-icon">🔧</div>
+          <h3 class="who-title">MECHANICS</h3>
+          <p class="who-desc">Source the right parts quickly for your customers.</p>
+          <ul class="who-list">
+            <li>Bulk ordering discounts</li>
+            <li>Part number lookup</li>
+            <li>Same-day availability</li>
+            <li>Workshop management</li>
+          </ul>
+        </div>
+
+        <!-- Shopkeepers -->
+        <div class="who-card">
+          <div class="who-icon">🏪</div>
+          <h3 class="who-title">SHOPKEEPERS</h3>
+          <p class="who-desc">List your inventory and reach thousands of buyers instantly.</p>
+          <ul class="who-list">
+            <li>Easy inventory dashboard</li>
+            <li>Order management system</li>
+            <li>Analytics &amp; insights</li>
+            <li>Nationwide reach</li>
+          </ul>
+          <button class="shop-btn portal-btn" onclick="location.href='/Login/login.HTML'">OPEN SHOP PORTAL →</button>
+        </div>
+
+      </div>
+    </section>
+
+    <script src="script.js"></script>
+  </body>
+</html>

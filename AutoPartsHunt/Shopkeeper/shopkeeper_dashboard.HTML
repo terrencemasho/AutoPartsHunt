@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Shopkeeper Dashboard — Auto Parts Hunt</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="shopkeeper_style.css"/>
+</head>
+<body>
+
+  <!-- ══ SIDEBAR ══ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-logo">
+      <span class="lo-a">AUTO</span><span class="lo-p">PARTS</span>
+      <div class="lo-h">HUNT</div>
+      <div class="lo-tag">SHOP PORTAL</div>
+    </div>
+
+    <div class="sb-user">
+      <div class="av sk-av" id="sidebarAv">--</div>
+      <div class="uinfo">
+        <span class="uname" id="sidebarName">Loading...</span>
+        <span class="urole">Shopkeeper</span>
+      </div>
+      <div class="verify-badge" id="verifyBadge">⏳ Pending</div>
+    </div>
+
+    <nav class="sb-nav">
+      <a href="#" class="nav-item active" onclick="showSec('inventory',this)" id="nav-inventory">
+        <span class="ni">📋</span> Inventory
+        <span class="nbadge" id="nb-parts">0</span>
+      </a>
+      <a href="#" class="nav-item" onclick="showSec('addpart',this)" id="nav-addpart">
+        <span class="ni">➕</span> Add Part
+      </a>
+      <a href="#" class="nav-item" onclick="showSec('orders',this)">
+        <span class="ni">📦</span> Orders
+        <span class="nbadge orange-b" id="nb-orders">0</span>
+      </a>
+      <a href="#" class="nav-item" onclick="showSec('profile',this)">
+        <span class="ni">🏪</span> Shop Profile
+      </a>
+    </nav>
+
+    <button class="logout-btn" onclick="confirmLogout()">⏻ Logout</button>
+  </aside>
+
+  <!-- ══ MAIN ══ -->
+  <main class="main">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <button class="tog-btn" onclick="toggleSidebar()">☰</button>
+      <div class="tb-title" id="tbTitle">My Parts</div>
+      <div class="tb-right">
+        <div class="shop-chip" id="shopChip"><span>🏪</span> <span id="shopChipName">...</span></div>
+        <div class="av sk-av tb-av" id="topbarAv">--</div>
+      </div>
+    </div>
+
+    <!-- ══════ SECTION: INVENTORY ══════ -->
+    <!-- ══════ SECTION: INVENTORY ══════ -->
+    <section class="sec active" id="sec-inventory">
+
+      <!-- Stats -->
+      <div class="stats-row">
+        <div class="scard"><div class="sv" id="st-total">0</div><div class="sl">TOTAL PARTS</div></div>
+        <div class="scard"><div class="sv orange" id="st-active">0</div><div class="sl">ACTIVE</div></div>
+        <div class="scard"><div class="sv" id="st-stock">0</div><div class="sl">TOTAL STOCK</div></div>
+        <div class="scard"><div class="sv orange" id="st-val">PKR 0</div><div class="sl">INVENTORY VALUE</div></div>
+      </div>
+
+      <div class="panel full-panel">
+        <div class="ph">
+          <div>
+            <div class="ptag">INVENTORY</div>
+            <h2 class="ptitle">MY PARTS LIST</h2>
+          </div>
+          <div class="inv-header-right">
+            <div class="list-ctrls">
+              <input type="text" class="ls-input" id="listQ" placeholder="Search..." oninput="renderList()"/>
+              <select class="ls-sel" id="listCat" onchange="renderList()">
+                <option value="">All Categories</option>
+                <option>Engine</option><option>Brakes</option>
+                <option>Electrical</option><option>Suspension</option>
+                <option>Tyres</option><option>Body Parts</option>
+                <option>Exhaust</option><option>Transmission</option>
+                <option>Cooling</option><option>Fuel System</option>
+              </select>
+            </div>
+            <button class="add-part-btn" onclick="goToAddPart()">＋ ADD PART</button>
+          </div>
+        </div>
+
+        <div class="tbl-wrap">
+          <table class="dtbl" id="partsTable">
+            <thead>
+              <tr>
+                <th>ID</th><th>PART</th><th>MAKE</th>
+                <th>CAT</th><th>PRICE</th><th>STOCK</th>
+                <th>STATUS</th><th>ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody id="partsBody"></tbody>
+          </table>
+          <div class="empty-tbl" id="emptyTbl" style="display:none;">
+            <div style="font-size:40px;margin-bottom:12px;">📦</div>
+            <h3>No parts yet</h3>
+            <p>Click "Add Part" to list your first part.</p>
+            <button class="add-part-btn" style="margin-top:16px;" onclick="goToAddPart()">＋ ADD PART</button>
+          </div>
+        </div>
+        <div class="tbl-footer"><span id="listCount">0 parts</span></div>
+      </div>
+    </section>
+
+    <!-- ══════ SECTION: ADD PART ══════ -->
+    <section class="sec" id="sec-addpart">
+      <div class="sec-head addpart-head">
+        <div>
+          <div class="ptag">AUTO_PART</div>
+          <h2 class="ptitle" id="formTitle">ADD NEW PART</h2>
+        </div>
+        <button class="back-inv-btn" onclick="goToInventory()">&#8592; Back to Inventory</button>
+      </div>
+
+      <div class="panel full-panel" id="formPanel">
+        <div class="ph" style="justify-content:flex-end;border-bottom:1px solid #f2f2f2;padding-bottom:14px;">
+          <button class="clear-btn" id="clearBtn" onclick="clearForm()" style="display:none;">&#x2715; Clear</button>
+        </div>
+
+        <input type="hidden" id="editId"/>
+
+        <div class="fgrid">
+
+          <div class="fg full">
+            <label>PART NAME <span class="req">*</span></label>
+            <input type="text" id="f-name" placeholder="e.g. Brake Pad Set (Front)"/>
+          </div>
+
+          <div class="fg">
+            <label>PART NUMBER</label>
+            <input type="text" id="f-no" placeholder="e.g. BP-TYT-001"/>
+          </div>
+
+          <div class="fg">
+            <label>VEHICLE MAKE <span class="req">*</span></label>
+            <select id="f-make">
+              <option value="">Select</option>
+              <option>Toyota</option><option>Honda</option>
+              <option>Suzuki</option><option>Hyundai</option>
+              <option>Kia</option><option>Nissan</option>
+              <option>Mitsubishi</option><option>Other</option>
+            </select>
+          </div>
+
+          <div class="fg">
+            <label>VEHICLE MODEL</label>
+            <input type="text" id="f-model" placeholder="e.g. Corolla, Civic"/>
+          </div>
+
+          <div class="fg">
+            <label>YEAR RANGE</label>
+            <input type="text" id="f-year" placeholder="e.g. 2015&#8211;2022"/>
+          </div>
+
+          <div class="fg">
+            <label>CATEGORY <span class="req">*</span></label>
+            <select id="f-cat">
+              <option value="">Select</option>
+              <option>Engine</option><option>Brakes</option>
+              <option>Electrical</option><option>Suspension</option>
+              <option>Tyres</option><option>Body Parts</option>
+              <option>Exhaust</option><option>Transmission</option>
+              <option>Cooling</option><option>Fuel System</option>
+            </select>
+          </div>
+
+          <div class="fg">
+            <label>CONDITION <span class="req">*</span></label>
+            <select id="f-cond">
+              <option value="">Select</option>
+              <option>New</option>
+              <option>Used &#8211; Good</option>
+              <option>Used &#8211; Fair</option>
+              <option>Refurbished</option>
+            </select>
+          </div>
+
+          <div class="fg">
+            <label>PRICE (PKR) <span class="req">*</span></label>
+            <input type="number" id="f-price" placeholder="e.g. 4500" min="0"/>
+          </div>
+
+          <div class="fg">
+            <label>STOCK QTY <span class="req">*</span></label>
+            <input type="number" id="f-stock" placeholder="e.g. 10" min="0"/>
+          </div>
+
+          <div class="fg full">
+            <label>IMAGE URL</label>
+            <input type="text" id="f-img" placeholder="https://..."/>
+          </div>
+
+          <div class="fg full">
+            <label>DESCRIPTION</label>
+            <textarea id="f-desc" rows="3" placeholder="Part specs, compatibility, notes..."></textarea>
+          </div>
+
+          <div class="fg">
+            <label>IS ACTIVE</label>
+            <div class="tog-row">
+              <label class="tog">
+                <input type="checkbox" id="f-active" checked/>
+                <span class="tog-sl"></span>
+              </label>
+              <span class="tog-lbl" id="activeLabel">Active</span>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="factions">
+          <button class="save-btn" id="saveBtn" onclick="savePart()">
+            <span id="saveTxt">&#xFF0B; ADD PART</span>
+          </button>
+          <button class="cancel-btn" id="cancelBtn" style="display:none;" onclick="cancelEdit()">Cancel</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════ SECTION: ORDERS ══════ -->
+    <section class="sec" id="sec-orders">
+      <div class="sec-head">
+        <div class="ptag">INCOMING</div>
+        <h2 class="ptitle">ORDERS FOR MY SHOP</h2>
+      </div>
+      <div class="panel full-panel">
+        <div class="tbl-wrap">
+          <table class="dtbl">
+            <thead>
+              <tr><th>ORDER ID</th><th>CUSTOMER</th><th>PART</th><th>QTY</th><th>TOTAL</th><th>STATUS</th><th>DATE</th><th>ACTION</th></tr>
+            </thead>
+            <tbody id="ordersBody">
+              <!-- Orders populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════ SECTION: SHOP PROFILE ══════ -->
+    <section class="sec" id="sec-profile">
+      <div class="sec-head">
+        <div class="ptag">SHOP ENTITY</div>
+        <h2 class="ptitle">SHOP PROFILE</h2>
+      </div>
+      <div class="panel full-panel profile-card">
+        <div class="profile-av-lg sk-av" id="profileAv">--</div>
+        <div class="profile-grid">
+          <div class="pfg"><label>SHOP NAME</label><input type="text" id="pf-shopname"/></div>
+          <div class="pfg"><label>OWNER NAME</label><input type="text" id="pf-owner" readonly style="background:#f8f8f8;"/></div>
+          <div class="pfg"><label>EMAIL</label><input type="email" id="pf-email" readonly style="background:#f8f8f8;"/></div>
+          <div class="pfg"><label>PHONE</label><input type="tel" id="pf-phone"/></div>
+          <div class="pfg"><label>CITY</label><input type="text" id="pf-city" readonly style="background:#f8f8f8;"/></div>
+          <div class="pfg"><label>CNIC</label><input type="text" id="pf-cnic" placeholder="42201-XXXXXXX-X"/></div>
+          <div class="pfg full"><label>ADDRESS</label><input type="text" id="pf-address" placeholder="Your shop address..."/></div>
+          <div class="pfg full"><label>SHOP DESCRIPTION</label><textarea rows="3" id="pf-desc" placeholder="Tell customers about your shop..."></textarea></div>
+          <div class="pfg"><label>VERIFICATION STATUS</label><div class="verify-status pending">⏳ Pending Verification</div></div>
+          <div class="pfg"><label>IS ACTIVE</label><div class="verify-status active-st">✓ Active</div></div>
+          <div class="pfg full"><button class="save-btn" onclick="saveProfile()">💾 SAVE PROFILE</button></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- DELETE MODAL -->
+  <div class="modal-ov" id="delModal" style="display:none;">
+    <div class="modal-box">
+      <div style="font-size:40px;margin-bottom:14px;">🗑️</div>
+      <h3 class="modal-title">DELETE PART?</h3>
+      <p class="modal-desc" id="delDesc">This will permanently remove the part.</p>
+      <div class="modal-btns">
+        <button class="cancel-modal" onclick="closeModal()">Cancel</button>
+        <button class="confirm-del" id="confirmDelBtn">Yes, Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGOUT MODAL -->
+  <div class="modal-ov" id="logoutModal" style="display:none;">
+    <div class="modal-box">
+      <div style="font-size:40px;margin-bottom:14px;">⏻</div>
+      <h3 class="modal-title">LOGOUT?</h3>
+      <p class="modal-desc">Are you sure you want to log out?</p>
+      <div class="modal-btns">
+        <button class="cancel-modal" onclick="closeModal()">Cancel</button>
+        <button class="confirm-del" onclick="doLogout()">Yes, Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="/app_state.js"></script>
+  <script src="shopkeeper_script.js"></script>
+</body>
+</html>
