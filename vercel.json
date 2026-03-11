@@ -1,5 +1,6 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/AutoPartsHunt/$1" }
+    { "source": "/", "destination": "/Landing/landing_Page.HTML" },
+    { "source": "/(.*)", "destination": "/$1" }
   ]
 }
