@@ -1,74 +1,97 @@
-# 🚢 Deployment Guide — Auto Parts Hunt
+# Deployment Guide — Auto Parts Hunt
 
-This document explains exactly how to deploy Auto Parts Hunt for live access using **npx serve** and **ngrok**.
+## Live URL
 
----
+> **https://auto-parts-hunt.vercel.app**
 
-## Prerequisites
-
-| Tool | Purpose | Install |
-|------|---------|---------|
-| Node.js | Required to run `npx serve` | [nodejs.org](https://nodejs.org) |
-| ngrok | Creates public HTTPS tunnel | [ngrok.com/download](https://ngrok.com/download) |
-
-### Configure ngrok (one-time setup)
-1. Sign up at [ngrok.com](https://ngrok.com)
-2. Copy your authtoken from the dashboard
-3. Run:
-```bash
-ngrok config add-authtoken YOUR_TOKEN_HERE
-```
+The app is deployed on **Vercel** and connected to **GitHub** for automatic redeployment.
+No local machine needs to be running for the site to stay live.
 
 ---
 
-## Deployment Steps
+## Deployment Stack
 
-### 1. Clone the repository
-```bash
-git clone https://github.com/YOUR_USERNAME/auto-parts-hunt.git
-cd auto-parts-hunt
-```
-
-### 2. Start the local file server
-```bash
-npx serve "Auto Parts" -l 3000
-```
-Expected output:
-```
-Serving!
-- Local:    http://localhost:3000
-- Network:  http://YOUR_IP:3000
-```
-
-### 3. Start the ngrok tunnel (new terminal)
-```bash
-ngrok http 3000
-```
-Expected output:
-```
-Session Status    online
-Account           mashokoterrence1@gmail.com (Plan: Free)
-Region            India (in)
-Latency           77ms
-Forwarding        https://xxxx-xxxx.ngrok-free.dev → http://localhost:3000
-```
-
-### 4. Share the public URL
-Copy the `Forwarding` URL from the ngrok output and share it. Anyone with the link can access the app.
-
-### 5. Monitor live traffic
-Open `http://127.0.0.1:4040` in your browser — this is the ngrok web dashboard showing all incoming HTTP requests in real time.
+| Layer | Service | Details |
+|-------|---------|---------|
+| Frontend Hosting | Vercel (Free) | Serves all static HTML/CSS/JS. Permanent HTTPS URL. |
+| Source Control | GitHub | github.com/terrencemasho/AutoPartsHunt |
+| Routing Config | vercel.json + index.html | Maps root path to landing page. All sub-paths resolve correctly. |
+| Database & API | Supabase (Free) | PostgreSQL + auto-generated REST API. Always live. |
+| SSL / HTTPS | Vercel (auto) | TLS certificate auto-provisioned. No manual setup needed. |
 
 ---
 
-## Observed Response Times
+## How Deployment Works
 
-| Request Type | Status | Response Time |
-|-------------|--------|---------------|
-| HTML pages (first load) | 200 OK | 1–2 ms |
-| CSS / JS / images (cached) | 304 Not Modified | 1 ms |
-| Supabase API (warm) | 200 OK | 180–400 ms |
-| Supabase API (cold start) | 200 OK | 800–1500 ms |
+Vercel is connected directly to the GitHub repository. Every time a commit is pushed to the `main` branch, Vercel automatically redeploys the site within ~30 seconds. No manual steps required after the initial setup.
+
+---
+
+## Initial Setup Steps
+
+### 1. Push code to GitHub
+Ensure the following files exist at the repo root:
+```
+AutoPartsHunt/     ← all project files
+index.html         ← redirects root to landing page
+vercel.json        ← routing configuration
+README.md
+DEPLOYMENT.md
+```
+
+### 2. Connect to Vercel
+1. Go to [vercel.com](https://vercel.com) → **New Project**
+2. Click **Import** next to `terrencemasho/AutoPartsHunt`
+3. Set **Framework Preset** to `Other`
+4. Leave Build Command, Output Directory, and Install Command **blank**
+5. Click **Deploy**
+
+### 3. Verify deployment
+Visit `https://auto-parts-hunt.vercel.app` and confirm:
+- Landing page loads
+- Login and Register work
+- Admin login: `admin@autopartlogin` / `admin@auto`
+- Shopkeeper and Customer dashboards load after registration
+
+---
+
+## vercel.json
+```json
+{
+  "rewrites": [
+    { "source": "/", "destination": "/AutoPartsHunt/Landing/landing_Page.HTML" },
+    { "source": "/(.*)", "destination": "/AutoPartsHunt/$1" }
+  ]
+}
+```
+
+---
+
+## index.html (repo root)
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="refresh" content="0; url=/AutoPartsHunt/Landing/landing_Page.HTML">
+</head>
+<body>
+  <script>window.location.href = '/AutoPartsHunt/Landing/landing_Page.HTML';</script>
+</body>
+</html>
+```
+
+---
+
+## Future Updates
+
+Any `git push` to the `main` branch triggers automatic redeployment. To update the live site:
+```bash
+git add -A
+git commit -m "your update message"
+git push
+```
+
+Vercel picks up the change and redeploys within 30 seconds.
 
 ---
 
@@ -76,69 +99,7 @@ Open `http://127.0.0.1:4040` in your browser — this is the ngrok web dashboard
 
 | Limitation | Details |
 |-----------|---------|
-| ngrok URL changes | On the free plan, the public URL is regenerated every time ngrok restarts. Share the new URL after each restart. |
-| Both terminals must stay open | Closing either the `npx serve` or `ngrok` terminal takes the app offline. |
-| Supabase cold start | If the DB hasn't been queried in a while, the first request takes ~1s. Subsequent requests are fast. |
-| Plain-text passwords | Passwords are stored unhashed — prototype only, not for production. |
-
----
-
-## Database Setup (if starting fresh)
-
-If you are using a new Supabase project, create the following tables:
-```sql
--- Users
-create table users (
-  id text primary key,
-  fname text, lname text, email text unique,
-  password text, role text, city text,
-  phone text, active boolean, joined text
-);
-
--- Shops
-create table shops (
-  id text primary key, user_id text,
-  name text, owner text, city text, phone text,
-  address text, description text,
-  verified boolean, active boolean, joined text
-);
-
--- Parts
-create table parts (
-  id text primary key, shop_id text, shop_name text,
-  name text, no text, make text, model text, year text,
-  cat text, cond text, price numeric, stock integer,
-  description text, img text, active boolean
-);
-
--- Orders
-create table orders (
-  id text primary key, customer_id text, customer_name text,
-  customer_phone text, part_id text, part_name text,
-  shop_id text, shop_name text, qty integer, total numeric,
-  unit_price numeric, status text, reviewed boolean,
-  date text, timestamp bigint
-);
-
--- Reviews
-create table reviews (
-  id text primary key, order_id text, part_id text,
-  part_name text, shop_id text, shop_name text,
-  customer_id text, customer_name text,
-  rating integer, comment text, date text, timestamp bigint
-);
-```
-
-Then update `app_state.js` with your new Supabase project URL and key.
-
----
-
-## Upgrade Path (future)
-
-If a permanent URL is needed (no ngrok restart issue), the recommended upgrade path is:
-
-1. Deploy frontend to **Vercel** — drag and drop the `Auto Parts` folder, select "No Framework"
-2. Keep **Supabase** as the backend — zero code changes required
-3. All absolute paths (`/Login/`, `/customer/`, `/admin/`) resolve correctly on Vercel
-
-This requires no changes to any HTML, CSS, or JS files.
+| Plain-text passwords | Passwords stored unhashed — prototype only, not for production. |
+| No image upload | Part images use external URLs. Supabase Storage not yet integrated. |
+| Cart not persisted | Cart lives in memory — lost on page refresh. |
+| Supabase cold start | First request after inactivity ~1s. Subsequent requests 180–400ms. |
