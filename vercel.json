@@ -1,7 +1,6 @@
 {
-  "rewrites": [
-    { "source": "/", "destination": "/AutoPartsHunt/Landing/landing_Page.HTML" },
-    { "source": "/(.*)", "destination": "/AutoPartsHunt/$1" }
+  "version": 2,
+  "builds": [
+    { "src": "**/*", "use": "@vercel/static" }
   ]
 }
-
