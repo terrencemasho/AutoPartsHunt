@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Dashboard — Auto Parts Hunt</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;900&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="admin2_style.css"/>
+</head>
+<body>
+
+  <!-- ══ SIDEBAR ══ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-logo">
+      <span class="lo-a">AUTO</span><span class="lo-p">PARTS</span>
+      <div class="lo-h">HUNT</div>
+      <div class="lo-tag">ADMIN PANEL</div>
+    </div>
+
+    <div class="sb-user">
+      <div class="av ad-av">AD</div>
+      <div class="uinfo">
+        <span class="uname">Administrator</span>
+        <span class="urole">Super Admin</span>
+      </div>
+    </div>
+
+    <nav class="sb-nav">
+      <div class="nav-group">MANAGEMENT</div>
+      <a href="#" class="nav-item active" onclick="showSec('shops',this)">
+        <span class="ni">🏪</span> Shops
+        <span class="nbadge orange-b" id="nb-pending">0</span>
+      </a>
+      <a href="#" class="nav-item" onclick="showSec('users',this)">
+        <span class="ni">👥</span> Users
+        <span class="nbadge" id="nb-users">0</span>
+      </a>
+      <a href="#" class="nav-item" onclick="showSec('parts',this)">
+        <span class="ni">⚙️</span> All Parts
+        <span class="nbadge" id="nb-parts">0</span>
+      </a>
+      <a href="#" class="nav-item" onclick="showSec('orders',this)">
+        <span class="ni">📦</span> Orders
+        <span class="nbadge" id="nb-orders">0</span>
+      </a>
+      <a href="#" class="nav-item" onclick="showSec('reviews',this)">
+        <span class="ni">⭐</span> Reviews
+      </a>
+      <div class="nav-group">SYSTEM</div>
+      <a href="#" class="nav-item" onclick="showSec('overview',this)">
+        <span class="ni">📊</span> Overview
+      </a>
+    </nav>
+
+    <button class="logout-btn" onclick="confirmLogout()">⏻ Logout</button>
+  </aside>
+
+  <!-- ══ MAIN ══ -->
+  <main class="main">
+
+    <div class="topbar">
+      <button class="tog-btn" onclick="toggleSidebar()">☰</button>
+      <div class="tb-title" id="tbTitle">Shops Management</div>
+      <div class="tb-right">
+        <div class="clock-chip" id="clock"></div>
+        <div class="av ad-av tb-av">AD</div>
+      </div>
+    </div>
+
+    <!-- ══════ SHOPS ══════ -->
+    <section class="sec active" id="sec-shops">
+      <div class="sec-head">
+        <div>
+          <div class="ptag">SHOP ENTITY</div>
+          <h2 class="ptitle">SHOPS MANAGEMENT</h2>
+        </div>
+        <div class="filter-row">
+          <input type="text" class="ls-input" id="shopQ" placeholder="Search shops..." oninput="renderShops()"/>
+          <select class="ls-sel" id="shopFilter" onchange="renderShops()">
+            <option value="">All</option>
+            <option value="verified">Verified</option>
+            <option value="pending">Pending</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="scard"><div class="sv" id="sv-total">0</div><div class="sl">TOTAL SHOPS</div></div>
+        <div class="scard"><div class="sv orange" id="sv-verified">0</div><div class="sl">VERIFIED</div></div>
+        <div class="scard"><div class="sv" id="sv-pending">0</div><div class="sl">PENDING</div></div>
+        <div class="scard"><div class="sv orange" id="sv-active">0</div><div class="sl">ACTIVE</div></div>
+      </div>
+
+      <div class="panel">
+        <div class="tbl-wrap">
+          <table class="dtbl">
+            <thead>
+              <tr>
+                <th>SHOP ID</th><th>SHOP NAME</th><th>OWNER</th>
+                <th>CITY</th><th>PHONE</th>
+                <th>VERIFIED</th><th>IS ACTIVE</th><th>ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody id="shopsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════ USERS ══════ -->
+    <section class="sec" id="sec-users">
+      <div class="sec-head">
+        <div>
+          <div class="ptag">USER ENTITY</div>
+          <h2 class="ptitle">USER MANAGEMENT</h2>
+        </div>
+        <div class="filter-row">
+          <input type="text" class="ls-input" id="userQ" placeholder="Search users..." oninput="renderUsers()"/>
+          <select class="ls-sel" id="userFilter" onchange="renderUsers()">
+            <option value="">All Roles</option>
+            <option value="customer">Customers</option>
+            <option value="shopkeeper">Shopkeepers</option>
+          </select>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="tbl-wrap">
+          <table class="dtbl">
+            <thead>
+              <tr><th>USER ID</th><th>NAME</th><th>EMAIL</th><th>ROLE</th><th>CITY</th><th>JOINED</th><th>STATUS</th><th>ACTION</th></tr>
+            </thead>
+            <tbody id="usersBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════ ALL PARTS ══════ -->
+    <section class="sec" id="sec-parts">
+      <div class="sec-head">
+        <div>
+          <div class="ptag">AUTO_PART ENTITY</div>
+          <h2 class="ptitle">ALL PARTS</h2>
+        </div>
+        <input type="text" class="ls-input" id="partsQ" placeholder="Search parts..." oninput="renderParts()"/>
+      </div>
+      <div class="panel">
+        <div class="tbl-wrap">
+          <table class="dtbl">
+            <thead>
+              <tr><th>ID</th><th>PART NAME</th><th>SHOP</th><th>MAKE</th><th>CAT</th><th>PRICE</th><th>STOCK</th><th>STATUS</th><th>ACTION</th></tr>
+            </thead>
+            <tbody id="partsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════ ORDERS ══════ -->
+    <section class="sec" id="sec-orders">
+      <div class="sec-head">
+        <div class="ptag">ORDER + ORDER_ITEM</div>
+        <h2 class="ptitle">ALL ORDERS</h2>
+      </div>
+      <div class="panel">
+        <div class="tbl-wrap">
+          <table class="dtbl">
+            <thead>
+              <tr><th>ORDER ID</th><th>CUSTOMER</th><th>PART</th><th>SHOP</th><th>QTY</th><th>TOTAL</th><th>STATUS</th><th>DATE</th></tr>
+            </thead>
+            <tbody id="adminOrdersBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════ REVIEWS ══════ -->
+    <section class="sec" id="sec-reviews">
+      <div class="sec-head">
+        <div class="ptag">REVIEW ENTITY</div>
+        <h2 class="ptitle">REVIEWS</h2>
+      </div>
+      <div class="panel">
+        <div class="tbl-wrap">
+          <table class="dtbl">
+            <thead>
+              <tr><th>ID</th><th>USER</th><th>PART</th><th>RATING</th><th>COMMENT</th><th>DATE</th><th>ACTION</th></tr>
+            </thead>
+            <tbody id="reviewsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════ OVERVIEW ══════ -->
+    <section class="sec" id="sec-overview">
+      <div class="sec-head">
+        <div class="ptag">SYSTEM</div>
+        <h2 class="ptitle">SYSTEM OVERVIEW</h2>
+      </div>
+      <div class="ov-grid">
+        <div class="ov-card"><div class="ov-icon">🏪</div><div class="ov-val orange" id="ov-shops">0</div><div class="ov-lbl">SHOPS</div></div>
+        <div class="ov-card"><div class="ov-icon">👥</div><div class="ov-val" id="ov-users">0</div><div class="ov-lbl">USERS</div></div>
+        <div class="ov-card"><div class="ov-icon">⚙️</div><div class="ov-val" id="ov-parts">0</div><div class="ov-lbl">PARTS</div></div>
+        <div class="ov-card"><div class="ov-icon">📦</div><div class="ov-val orange" id="ov-orders">0</div><div class="ov-lbl">ORDERS</div></div>
+        <div class="ov-card"><div class="ov-icon">💳</div><div class="ov-val" id="ov-revenue">PKR 0</div><div class="ov-lbl">REVENUE</div></div>
+        <div class="ov-card"><div class="ov-icon">⭐</div><div class="ov-val orange" id="ov-rating">—</div><div class="ov-lbl">AVG RATING</div></div>
+      </div>
+      <div class="erd-panel">
+        <div class="ptag">DATABASE SCHEMA</div>
+        <h3 class="ptitle" style="margin-bottom:20px;">ERD — ALL ENTITIES</h3>
+        <div class="erd-grid">
+          <div class="erd-card"><h4>USER</h4><ul><li>🔑 user_id (PK)</li><li>first_name / last_name</li><li>email / phone</li><li>role / city</li><li>is_active</li></ul></div>
+          <div class="erd-card hl"><h4>AUTO_PART</h4><ul><li>🔑 part_id (PK)</li><li>part_name / part_number</li><li>make / model / year</li><li>category / condition</li><li>price / stock_qty</li><li>🔗 shop_id (FK)</li><li>is_active</li></ul></div>
+          <div class="erd-card"><h4>SHOP</h4><ul><li>🔑 shop_id (PK)</li><li>shop_name / owner</li><li>city / phone</li><li>is_verified</li><li>🔗 user_id (FK)</li></ul></div>
+          <div class="erd-card"><h4>ORDER</h4><ul><li>🔑 order_id (PK)</li><li>order_date / status</li><li>total_amount</li><li>🔗 user_id (FK)</li></ul></div>
+          <div class="erd-card"><h4>ORDER_ITEM</h4><ul><li>🔑 item_id (PK)</li><li>quantity / unit_price</li><li>🔗 order_id (FK)</li><li>🔗 part_id (FK)</li></ul></div>
+          <div class="erd-card"><h4>PAYMENT</h4><ul><li>🔑 payment_id (PK)</li><li>amount / method</li><li>status / date</li><li>🔗 order_id (FK)</li></ul></div>
+          <div class="erd-card"><h4>REVIEW</h4><ul><li>🔑 review_id (PK)</li><li>rating / comment</li><li>review_date</li><li>🔗 user_id (FK)</li><li>🔗 part_id (FK)</li></ul></div>
+          <div class="erd-card"><h4>PART_IMAGE</h4><ul><li>🔑 image_id (PK)</li><li>image_url / is_primary</li><li>🔗 part_id (FK)</li></ul></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- CONFIRM MODAL -->
+  <div class="modal-ov" id="confirmModal" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-icon" id="mIcon">⚠️</div>
+      <h3 class="modal-title" id="mTitle">Confirm</h3>
+      <p class="modal-desc"  id="mDesc">Are you sure?</p>
+      <div class="modal-btns">
+        <button class="cancel-modal" onclick="closeModal()">Cancel</button>
+        <button class="confirm-btn" id="mConfirmBtn">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGOUT MODAL -->
+  <div class="modal-ov" id="logoutModal" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-icon">⏻</div>
+      <h3 class="modal-title">LOGOUT?</h3>
+      <p class="modal-desc">Log out of the admin panel?</p>
+      <div class="modal-btns">
+        <button class="cancel-modal" onclick="closeModal()">Cancel</button>
+        <button class="confirm-btn" onclick="doLogout()">Yes, Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="/app_state.js"></script>
+  <script src="admin2_script.js"></script>
+</body>
+</html>

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login / Register — Auto Parts Hunt</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;900&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: "Poppins", sans-serif; background: #f4f4f4; min-height: 100vh; display: flex; flex-direction: column; }
+    header { height: 60px; border-radius: 100px; display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0px; left: 40px; right: 40px; z-index: 1000; padding: 0 25px; background: rgba(255,255,255,0.6); backdrop-filter: blur(10px); border: 2px solid rgba(33,13,251,0.979); box-shadow: 0 5px 20px rgba(0,0,0,0.08); }
+    .logo img { height: 190px; width: auto; }
+    .link { display: flex; gap: 2rem; }
+    header nav a { text-decoration: none; font-size: 20px; color: black; font-weight: bold; transition: color 0.2s; }
+    header nav a:hover { color: blue; }
+    .auth-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; padding: 120px 20px 60px; min-height: 100vh; }
+    .auth-card { background: #fff; border-radius: 16px; box-shadow: 0 8px 40px rgba(0,0,0,0.10); width: 100%; max-width: 500px; overflow: hidden; }
+    .tabs { display: grid; grid-template-columns: 1fr 1fr; }
+    .tab-btn { padding: 18px; background: #f5f5f5; border: none; font-family: "Poppins", sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #aaa; cursor: pointer; border-bottom: 3px solid #eee; transition: all 0.2s; }
+    .tab-btn.active { background: #fff; color: #111; border-bottom: 3px solid #E84800; }
+    .auth-form { display: none; padding: 36px 40px 40px; }
+    .auth-form.active { display: block; animation: fadeUp 0.3s ease; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .form-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: #E84800; text-transform: uppercase; margin-bottom: 6px; }
+    .form-title { font-size: 28px; font-weight: 900; text-transform: uppercase; color: #111; margin-bottom: 28px; line-height: 1.1; }
+    .form-group { margin-bottom: 18px; }
+    .form-group label { display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: #aaa; text-transform: uppercase; margin-bottom: 7px; }
+    .form-group input, .form-group select { width: 100%; padding: 13px 16px; border: 1.5px solid #e5e5e5; border-radius: 8px; font-family: "Poppins", sans-serif; font-size: 14px; color: #333; background: #fff; outline: none; transition: border 0.2s; }
+    .form-group input:focus, .form-group select:focus { border-color: #E84800; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .required { color: #E84800; }
+    .role-selector { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+    .role-option { display: none; }
+    .role-label { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 10px; border: 1.5px solid #e5e5e5; border-radius: 8px; cursor: pointer; transition: all 0.2s; text-align: center; }
+    .role-label:hover { border-color: #E84800; background: #fff8f5; }
+    .role-option:checked + .role-label { border-color: #E84800; background: #fff0ec; }
+    .role-icon { font-size: 28px; }
+    .role-name { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #111; }
+    .role-desc { font-size: 10px; color: #888; }
+    .pw-wrap { position: relative; }
+    .pw-wrap input { padding-right: 44px; }
+    .pw-toggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 16px; color: #aaa; padding: 4px; }
+    .pw-toggle:hover { color: #E84800; }
+    .terms-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 22px; margin-top: 6px; }
+    .terms-row input[type="checkbox"] { width: 16px; height: 16px; margin-top: 2px; accent-color: #E84800; flex-shrink: 0; }
+    .terms-row span { font-size: 12px; color: #777; line-height: 1.5; }
+    .terms-row a { color: #E84800; text-decoration: none; font-weight: 600; }
+    .submit-btn { width: 100%; padding: 15px; background: #E84800; color: #fff; border: none; border-radius: 8px; font-family: "Poppins", sans-serif; font-size: 15px; font-weight: 800; letter-spacing: 0.05em; cursor: pointer; transition: all 0.25s; }
+    .submit-btn:hover { background: #c93d00; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(232,72,0,0.3); }
+    .divider { display: flex; align-items: center; gap: 12px; margin: 22px 0; }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: #eee; }
+    .divider span { font-size: 12px; color: #bbb; font-weight: 600; }
+    .switch-link { text-align: center; font-size: 13px; color: #888; }
+    .switch-link button { background: none; border: none; color: #E84800; font-weight: 800; font-family: "Poppins", sans-serif; font-size: 13px; cursor: pointer; text-decoration: underline; }
+    .msg { padding: 12px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; margin-bottom: 18px; display: none; }
+    .msg.error { background: #fff0ec; color: #c93d00; border: 1px solid #ffd4c2; }
+    .msg.success { background: #e6f9ed; color: #1a7a3c; border: 1px solid #b5ecc7; }
+    .toast { position: fixed; bottom: 28px; right: 28px; background: #111; color: #fff; padding: 13px 22px; border-radius: 8px; font-size: 13px; font-weight: 600; opacity: 0; transform: translateY(8px); transition: all 0.3s; pointer-events: none; z-index: 999; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    @media (max-width: 600px) { header { top: 10px; left: 10px; right: 10px; } .auth-form { padding: 28px 24px 32px; } .form-row { grid-template-columns: 1fr; } .form-title { font-size: 22px; } }
+  </style>
+</head>
+<body>
+  <script src="/app_state.js"></script>
+  <script>
+    APP.init();
+    const _s = APP.getSession();
+    if (_s) {
+      if (_s.role==='admin') location.href='/admin/admin_dashboard.HTML';
+      else if (_s.role==='shopkeeper') location.href='/Shopkeeper/shopkeeper_dashboard.HTML';
+      else location.href='/customer/customer_dashboard.HTML';
+    }
+  </script>
+
+  <header>
+    <div class="logo">
+      <img src="/Landing%20Page/Logo.png" alt="AutoParts Logo" />
+    </div>
+    <nav class="link">
+      <a href="/Landing%20Page/landing_Page.HTML">Home</a>
+      <a href="/contact/contact.html">Contact Us</a>
+    </nav>
+  </header>
+
+  <div class="auth-wrapper">
+    <div class="auth-card">
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('login')">Login</button>
+        <button class="tab-btn" onclick="switchTab('register')">Create Account</button>
+      </div>
+
+      <div class="auth-form active" id="form-login">
+        <div class="form-eyebrow">Welcome Back</div>
+        <h2 class="form-title">LOGIN TO<br/>YOUR ACCOUNT</h2>
+        <div class="msg" id="login-msg"></div>
+        <div class="form-group">
+          <label>EMAIL ADDRESS <span class="required">*</span></label>
+          <input type="email" id="l-email" placeholder="you@example.com"/>
+        </div>
+        <div class="form-group">
+          <label>PASSWORD <span class="required">*</span></label>
+          <div class="pw-wrap">
+            <input type="password" id="l-pass" placeholder="Enter your password"/>
+            <button type="button" class="pw-toggle" onclick="togglePw('l-pass',this)">👁</button>
+          </div>
+        </div>
+        <div style="text-align:right;margin-bottom:22px;">
+          <a href="#" style="font-size:12px;color:#E84800;font-weight:700;text-decoration:none;">Forgot Password?</a>
+        </div>
+        <button class="submit-btn" onclick="doLogin()">LOGIN →</button>
+        <div class="divider"><span>OR</span></div>
+        <div class="switch-link">Don't have an account? <button onclick="switchTab('register')">Create one free</button></div>
+        <div style="margin-top:20px;padding:14px;background:#f8f8f8;border-radius:8px;font-size:11px;color:#888;line-height:1.8;">
+          <strong style="color:#111;">Admin login:</strong><br/>
+          🔑 admin@autopartlogin &nbsp;/&nbsp; admin@auto
+        </div>
+      </div>
+
+      <div class="auth-form" id="form-register">
+        <div class="form-eyebrow">Join Auto Parts Hunt</div>
+        <h2 class="form-title">CREATE YOUR<br/>ACCOUNT</h2>
+        <div class="msg" id="reg-msg"></div>
+        <div class="form-group">
+          <label>I AM A <span class="required">*</span></label>
+          <div class="role-selector">
+            <input type="radio" name="role" id="role-customer" value="customer" class="role-option" checked/>
+            <label for="role-customer" class="role-label">
+              <span class="role-icon">🚗</span><span class="role-name">Customer</span><span class="role-desc">Buy auto parts</span>
+            </label>
+            <input type="radio" name="role" id="role-shop" value="shopkeeper" class="role-option"/>
+            <label for="role-shop" class="role-label">
+              <span class="role-icon">🏪</span><span class="role-name">Shopkeeper</span><span class="role-desc">Sell auto parts</span>
+            </label>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>FIRST NAME <span class="required">*</span></label><input type="text" id="r-fname" placeholder="Ahmed"/></div>
+          <div class="form-group"><label>LAST NAME <span class="required">*</span></label><input type="text" id="r-lname" placeholder="Khan"/></div>
+        </div>
+        <div class="form-group"><label>EMAIL ADDRESS <span class="required">*</span></label><input type="email" id="r-email" placeholder="you@example.com"/></div>
+        <div class="form-group"><label>PHONE NUMBER <span class="required">*</span></label><input type="tel" id="r-phone" placeholder="03XX-XXXXXXX"/></div>
+        <div class="form-group" id="shopNameGroup" style="display:none;">
+          <label>SHOP NAME <span class="required">*</span></label><input type="text" id="r-shopname" placeholder="e.g. Karachi Auto Parts"/>
+        </div>
+        <div class="form-group">
+          <label>CITY <span class="required">*</span></label>
+          <select id="r-city">
+            <option value="">Select City</option>
+            <option>Karachi</option><option>Lahore</option><option>Islamabad</option>
+            <option>Rawalpindi</option><option>Faisalabad</option><option>Peshawar</option>
+            <option>Multan</option><option>Quetta</option>
+          </select>
+        </div>
+        <div class="form-group"><label>PASSWORD <span class="required">*</span></label><div class="pw-wrap"><input type="password" id="r-pass" placeholder="Min 8 characters"/><button type="button" class="pw-toggle" onclick="togglePw('r-pass',this)">👁</button></div></div>
+        <div class="form-group"><label>CONFIRM PASSWORD <span class="required">*</span></label><div class="pw-wrap"><input type="password" id="r-pass2" placeholder="Repeat password"/><button type="button" class="pw-toggle" onclick="togglePw('r-pass2',this)">👁</button></div></div>
+        <div class="terms-row"><input type="checkbox" id="r-terms"/><span>I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a></span></div>
+        <button class="submit-btn" onclick="doRegister()">CREATE ACCOUNT →</button>
+        <div class="divider"><span>OR</span></div>
+        <div class="switch-link">Already have an account? <button onclick="switchTab('login')">Login here</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active',(i===0&&tab==='login')||(i===1&&tab==='register')));
+      document.getElementById('form-login').classList.toggle('active',tab==='login');
+      document.getElementById('form-register').classList.toggle('active',tab==='register');
+    }
+    document.querySelectorAll('input[name="role"]').forEach(r => {
+      r.addEventListener('change',()=>{ document.getElementById('shopNameGroup').style.display=r.value==='shopkeeper'?'block':'none'; });
+    });
+    function togglePw(id,btn) { const el=document.getElementById(id); if(el.type==='password'){el.type='text';btn.textContent='🙈';}else{el.type='password';btn.textContent='👁';} }
+
+    async function doLogin() {
+      const email=document.getElementById('l-email').value.trim();
+      const pass=document.getElementById('l-pass').value;
+      const msg=document.getElementById('login-msg');
+      const btn=document.querySelector('#form-login .submit-btn');
+      if(!email||!pass){showMsg(msg,'error','Please enter your email and password.');return;}
+      btn.textContent='⏳ Logging in...'; btn.disabled=true;
+      const result=await APP.login(email,pass);
+      btn.textContent='LOGIN →'; btn.disabled=false;
+      if(!result.ok){showMsg(msg,'error',result.msg);return;}
+      const user=result.user;
+      showMsg(msg,'success',`Welcome back, ${user.fname}! Redirecting...`);
+      showToast(`✓ Logged in as ${user.fname}`);
+      setTimeout(()=>{
+        if(user.role==='admin') location.href='/admin/admin_dashboard.HTML';
+        else if(user.role==='shopkeeper') location.href='/Shopkeeper/shopkeeper_dashboard.HTML';
+        else location.href='/customer/customer_dashboard.HTML';
+      },1200);
+    }
+
+    async function doRegister() {
+      const fname=document.getElementById('r-fname').value.trim();
+      const lname=document.getElementById('r-lname').value.trim();
+      const email=document.getElementById('r-email').value.trim();
+      const phone=document.getElementById('r-phone').value.trim();
+      const city=document.getElementById('r-city').value;
+      const pass=document.getElementById('r-pass').value;
+      const pass2=document.getElementById('r-pass2').value;
+      const terms=document.getElementById('r-terms').checked;
+      const role=document.querySelector('input[name="role"]:checked').value;
+      const shopName=document.getElementById('r-shopname').value.trim();
+      const msg=document.getElementById('reg-msg');
+      const btn=document.querySelector('#form-register .submit-btn');
+      if(!fname||!lname){showMsg(msg,'error','Please enter your full name.');return;}
+      if(!email){showMsg(msg,'error','Email address is required.');return;}
+      if(!phone){showMsg(msg,'error','Phone number is required.');return;}
+      if(role==='shopkeeper'&&!shopName){showMsg(msg,'error','Please enter your shop name.');return;}
+      if(!city){showMsg(msg,'error','Please select your city.');return;}
+      if(pass.length<8){showMsg(msg,'error','Password must be at least 8 characters.');return;}
+      if(pass!==pass2){showMsg(msg,'error','Passwords do not match.');return;}
+      if(!terms){showMsg(msg,'error','Please accept the Terms of Service.');return;}
+      btn.textContent='⏳ Creating account...'; btn.disabled=true;
+      const result=await APP.register({fname,lname,email,password:pass,phone,city,role,shopName});
+      btn.textContent='CREATE ACCOUNT →'; btn.disabled=false;
+      if(!result.ok){showMsg(msg,'error',result.msg);return;}
+      showMsg(msg,'success','Account created! Please log in.');
+      showToast('✓ Account created successfully!');
+      setTimeout(()=>{document.getElementById('l-email').value=email;switchTab('login');},1500);
+    }
+
+    function showMsg(el,type,text){el.className='msg '+type;el.textContent=text;el.style.display='block';}
+    let tt;
+    function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),3000);}
+    document.addEventListener('keydown',e=>{if(e.key==='Enter'){if(document.getElementById('form-login').classList.contains('active'))doLogin();else doRegister();}});
+  </script>
+</body>
+</html>
