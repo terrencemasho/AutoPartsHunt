@@ -5,6 +5,7 @@
 let session  = null;
 let cart     = [];
 let wishlist = [];
+let allParts = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
   session = APP.requireAuth('customer');
@@ -42,13 +43,15 @@ function showSection(id, el) {
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     el.classList.add('active');
   }
-  const titles = { browse:'Browse Parts', cart:'Cart', orders:'My Orders', wishlist:'Wishlist', track:'Track Order', reviews:'My Reviews', profile:'Profile' };
+  const titles = { browse:'Browse Parts', cart:'Cart', orders:'My Orders', wishlist:'Wishlist', track:'Track Order', reviews:'My Reviews', profile:'Profile', ai:'AI Diagnostics' };
   g('topbarTitle').textContent = titles[id] || '';
   if (id === 'orders')   renderOrders();
   if (id === 'wishlist') renderWishlist();
   if (id === 'cart')     renderCart();
   if (id === 'profile')  prefillProfile();
   if (id === 'reviews')  renderMyReviews();
+  // Close sidebar on mobile after navigation
+  if (window.innerWidth <= 900) closeSidebar();
 }
 
 /* ── STATS ── */
@@ -107,7 +110,16 @@ async function filterParts() {
   const cat  = g('filterCat').value;
   const sort = g('sortBy').value;
   let parts  = await APP.getActiveParts();
-  if (q)    parts = parts.filter(p => p.name.toLowerCase().includes(q) || (p.shop_name||'').toLowerCase().includes(q) || (p.make||'').toLowerCase().includes(q));
+  if (q) {
+    // Split query into words — match if part name contains ANY full word from the query
+    // e.g. "car radiator" → matches parts named "Radiator", "Car AC", etc.
+    const words = q.split(/\s+/).filter(w => w.length > 1);
+    parts = parts.filter(p => {
+      const haystack = [p.name, p.shop_name||'', p.make||'', p.cat||''].join(' ').toLowerCase();
+      if (haystack.includes(q)) return true;       // full phrase match first
+      return words.some(word => haystack.includes(word)); // then any word match
+    });
+  }
   if (make) parts = parts.filter(p => p.make === make);
   if (cat)  parts = parts.filter(p => p.cat  === cat);
   if (sort === 'price-asc')  parts.sort((a,b) => a.price - b.price);
@@ -182,33 +194,70 @@ async function renderCart() {
     </div>`;
   }).join('');
   g('subtotal').textContent   = 'PKR ' + subtotal.toLocaleString();
-  g('totalPrice').textContent = 'PKR ' + (subtotal + 200).toLocaleString();
+  g('totalPrice').textContent = 'PKR ' + (subtotal + 100).toLocaleString();
 }
 
-async function placeOrder() {
+async function placeOrder(paymentMethod = 'COD', fulfillmentType = 'pickup') {
   if (!cart.length) { showToast('⚠️ Your cart is empty'); return; }
   const parts = await APP.getActiveParts();
-  const btn   = document.querySelector('.orange-btn.full-btn');
-  if (btn) { btn.textContent = '⏳ Placing order...'; btn.disabled = true; }
+  allParts = parts;
 
   let placedCount = 0;
   let lastOrder   = null;
+  const customerName  = session.fname + ' ' + session.lname;
+  const customerEmail = session.email  || '';
+  const customerPhone = session.phone  || '';
 
   for (const item of cart) {
     const p = parts.find(x => x.id === item.partId);
     if (!p) continue;
     lastOrder = await APP.placeOrder({
       customerId:    session.id,
-      customerName:  session.fname + ' ' + session.lname,
-      customerPhone: session.phone || '',
+      customerName,
+      customerPhone,
       partId:        p.id,
       partName:      p.name,
       shopId:        p.shop_id,
       shopName:      p.shop_name || '',
       qty:           item.qty,
-      total:         p.price * item.qty,
-      unitPrice:     p.price
+      total:         p.price * item.qty + 100,
+      unitPrice:     p.price,
+      fulfillment:   fulfillmentType
     });
+
+    // Insert payment record into payments table
+    if (lastOrder) {
+      await APP.insertPayment({
+        orderId:       lastOrder.id,
+        amount:        p.price * item.qty,
+        paymentMethod: paymentMethod,
+        paymentStatus: (paymentMethod || '').toLowerCase() === 'cod' ? 'Pending' : 'Completed'
+      });
+    }
+
+    // Fetch shop owner's phone from users table
+    let shopPhone = '';
+    try {
+      const shop = await APP.getShopById(p.shop_id);
+      if (shop?.user_id) {
+        const shopOwner = await APP.getUserById(shop.user_id);
+        shopPhone = shopOwner?.phone || '';
+      }
+    } catch(_) {}
+
+    // Send notification for each order item
+    await sendOrderNotification({
+      orderId:       lastOrder ? lastOrder.id : 'ORD-?',
+      partName:      p.name,
+      shopName:      p.shop_name || '',
+      shopPhone,
+      customerName,
+      customerEmail,
+      customerPhone,
+      paymentMethod,
+      total:         p.price * item.qty
+    });
+
     // Deduct stock
     await APP.updatePart(p.id, { stock: Math.max(0, p.stock - item.qty) });
     placedCount++;
@@ -217,14 +266,9 @@ async function placeOrder() {
   cart = [];
   updateCartBadge();
   await updateStats();
-  if (btn) { btn.textContent = 'Place Order →'; btn.disabled = false; }
-  showToast(`✅ ${placedCount} order${placedCount !== 1 ? 's' : ''} placed!`);
+  showToast(`✅ ${placedCount} order${placedCount !== 1 ? 's' : ''} placed! ${fulfillmentType === 'pickup' ? '🏪 Pickup' : '🚚 Delivery'} · Payment: ${paymentMethod.toUpperCase()}`);
 
-  if (lastOrder) {
-    setTimeout(() => promptReview(lastOrder), 1200);
-  } else {
-    setTimeout(() => showSection('orders', null), 900);
-  }
+  return lastOrder; // Return so caller can trigger review
 }
 
 /* ══════════════════════════════
@@ -437,15 +481,601 @@ async function saveProfile() {
   showToast('✓ Profile saved');
 }
 
+/* ── DELETE ACCOUNT ── */
+function confirmDeleteAccount() {
+  g('deleteAccountModal') && (g('deleteAccountModal').style.display = 'flex');
+}
+
+async function doDeleteAccount() {
+  closeModal();
+  showToast('⏳ Deleting your account...');
+  await APP.deleteUserAccount(session.id);
+  APP.clearSession();
+  setTimeout(() => location.href = '/Login/login.HTML', 1200);
+}
+
 /* ── LOGOUT ── */
 function confirmLogout() { g('logoutModal').style.display = 'flex'; }
 function closeModal()    { document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none'); }
 function doLogout()      { closeModal(); APP.clearSession(); setTimeout(() => location.href = '/Login/login.HTML', 400); }
-function toggleSidebar() { g('sidebar').classList.toggle('open'); }
+function toggleSidebar() {
+  const isOpen = g('sidebar').classList.contains('open');
+  isOpen ? closeSidebar() : openSidebar();
+}
+function openSidebar() {
+  g('sidebar').classList.add('open');
+  g('sidebarOverlay').classList.add('active');
+  g('sidebarToggleBtn').innerHTML = '&#x2715;';
+}
+function closeSidebar() {
+  g('sidebar').classList.remove('open');
+  g('sidebarOverlay').classList.remove('active');
+  g('sidebarToggleBtn').innerHTML = '&#9776;';
+}
 
 let _tt;
 function showToast(msg) {
   const t = g('toast');
   t.innerHTML = msg; t.classList.add('show');
   clearTimeout(_tt); _tt = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+/* ══════════════════════════════════════════════
+   ORDER PAYMENT MODAL
+══════════════════════════════════════════════ */
+let selectedOrderPayMethod = null;
+
+async function openOrderPaymentModal() {
+  if (!cart.length) { showToast('⚠️ Your cart is empty'); return; }
+  selectedOrderPayMethod = null;
+  selectedFulfillment    = null;
+  document.querySelectorAll('.cust-pay-opt').forEach(b => b.classList.remove('selected'));
+  document.querySelectorAll('.fulfill-opt').forEach(b => b.classList.remove('selected'));
+  g('orderPayFields')        && (g('orderPayFields').innerHTML = '');
+  g('orderPaySubmitBtn')     && (g('orderPaySubmitBtn').style.display = 'none');
+  g('paymentMethodSection')  && (g('paymentMethodSection').style.display = 'none');
+  g('pickupAddressInfo')     && (g('pickupAddressInfo').style.display = 'none');
+
+  // Always fetch fresh parts so subtotal is accurate
+  if (!allParts || !allParts.length) allParts = await APP.getActiveParts();
+
+  const PLATFORM_FEE = 100;
+  const subtotal = cart.reduce((s, item) => {
+    const p = allParts.find(x => x.id === item.partId);
+    return s + (p ? p.price * item.qty : 0);
+  }, 0);
+  const total = subtotal + PLATFORM_FEE;
+  g('orderPayTotal') && (g('orderPayTotal').textContent = 'PKR ' + total.toLocaleString());
+  g('orderPaymentModal') && (g('orderPaymentModal').style.display = 'flex');
+}
+
+let selectedFulfillment = null;
+
+async function selectFulfillment(type) {
+  selectedFulfillment = type;
+  document.querySelectorAll('.fulfill-opt').forEach(b => {
+    b.style.borderColor = '#e5e5e5';
+    b.style.background  = '#fff';
+  });
+  const btn = g('fulfill' + type.charAt(0).toUpperCase() + type.slice(1));
+  if (btn) { btn.style.borderColor = '#E84800'; btn.style.background = '#fff5f0'; }
+
+  if (type === 'pickup') {
+    // Show pickup info with shop addresses from cart items
+    const info = g('pickupAddressInfo');
+    const text = g('pickupAddressText');
+    if (info && text) {
+      info.style.display = 'block';
+      text.textContent   = 'Loading...';
+      // Gather unique shop IDs in cart
+      const parts = allParts || await APP.getActiveParts();
+      const shops = {};
+      for (const item of cart) {
+        const p = parts.find(x => x.id === item.partId);
+        if (p && p.shop_id && !shops[p.shop_id]) {
+          shops[p.shop_id] = { name: p.shop_name || 'Shop', address: null };
+        }
+      }
+      // Fetch shop addresses
+      const shopIds = Object.keys(shops);
+      let lines = [];
+      for (const sid of shopIds) {
+        try {
+          const shopData = APP.getShopById ? await APP.getShopById(sid) : null;
+          const addr = shopData?.address || null;
+          lines.push(`<strong>${shops[sid].name}</strong>: ${addr || '<em style="color:#aaa;">Address not set — contact shop</em>'}`);
+        } catch(_) {
+          lines.push(`<strong>${shops[sid].name}</strong>: <em style="color:#aaa;">Address not available</em>`);
+        }
+      }
+      text.innerHTML = lines.length ? lines.join('<br/>') : 'Contact the shop for pickup location.';
+    }
+  } else {
+    g('pickupAddressInfo') && (g('pickupAddressInfo').style.display = 'none');
+  }
+
+  // Show payment method section
+  g('paymentMethodSection') && (g('paymentMethodSection').style.display = 'block');
+  // Reset payment selection
+  selectedOrderPayMethod = null;
+  document.querySelectorAll('.cust-pay-opt').forEach(b => b.classList.remove('selected'));
+  g('orderPayFields')    && (g('orderPayFields').innerHTML = '');
+  g('orderPaySubmitBtn') && (g('orderPaySubmitBtn').style.display = 'none');
+}
+
+function closeOrderPaymentModal() {
+  g('orderPaymentModal') && (g('orderPaymentModal').style.display = 'none');
+  selectedOrderPayMethod = null;
+  selectedFulfillment    = null;
+}
+
+function selectOrderPayMethod(method) {
+  selectedOrderPayMethod = method;
+  document.querySelectorAll('.cust-pay-opt').forEach(b => b.classList.remove('selected'));
+  const btn = document.querySelector(`.cust-pay-opt[data-method="${method}"]`);
+  if (btn) btn.classList.add('selected');
+
+  const fields = g('orderPayFields');
+  if (!fields) return;
+
+  if (method === 'cod') {
+    fields.innerHTML = `<div style="background:#fff8e1;border-radius:8px;padding:12px 16px;font-size:13px;color:#555;border:1px solid #ffe082;text-align:center;">🏠 Pay with cash when your order arrives. No extra charges.</div>`;
+  } else if (method === 'card') {
+    fields.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:#888;">CARDHOLDER NAME</label>
+          <input type="text" id="of-name" placeholder="As on card" style="padding:10px 12px;border:1.5px solid #e5e5e5;border-radius:8px;font-family:Poppins,sans-serif;font-size:13px;outline:none;"/>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:#888;">CARD NUMBER</label>
+          <input type="text" id="of-card" placeholder="0000 0000 0000 0000" maxlength="19" oninput="fmtCardNum(this)" style="padding:10px 12px;border:1.5px solid #e5e5e5;border-radius:8px;font-family:Poppins,sans-serif;font-size:13px;outline:none;"/>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:#888;">EXPIRY</label>
+            <input type="text" id="of-exp" placeholder="MM/YY" maxlength="5" style="padding:10px 12px;border:1.5px solid #e5e5e5;border-radius:8px;font-family:Poppins,sans-serif;font-size:13px;outline:none;"/>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <label style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:#888;">CVV</label>
+            <input type="text" id="of-cvv" placeholder="•••" maxlength="3" style="padding:10px 12px;border:1.5px solid #e5e5e5;border-radius:8px;font-family:Poppins,sans-serif;font-size:13px;outline:none;"/>
+          </div>
+        </div>
+      </div>`;
+  } else if (method === 'easypaisa') {
+    fields.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:#888;">EASYPAISA MOBILE NUMBER</label>
+          <input type="text" id="of-ep" placeholder="03XX-XXXXXXX" style="padding:10px 12px;border:1.5px solid #e5e5e5;border-radius:8px;font-family:Poppins,sans-serif;font-size:13px;outline:none;"/>
+        </div>
+        <div style="background:#e8f5e9;border-radius:8px;padding:10px 14px;font-size:12px;color:#555;border:1px solid #a5d6a7;">
+          📱 A payment request will be sent to your Easypaisa number.
+        </div>
+      </div>`;
+  } else if (method === 'jazzcash') {
+    fields.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <label style="font-size:11px;font-weight:700;letter-spacing:0.06em;color:#888;">JAZZCASH MOBILE NUMBER</label>
+          <input type="text" id="of-jc" placeholder="03XX-XXXXXXX" style="padding:10px 12px;border:1.5px solid #e5e5e5;border-radius:8px;font-family:Poppins,sans-serif;font-size:13px;outline:none;"/>
+        </div>
+        <div style="background:#fce4ec;border-radius:8px;padding:10px 14px;font-size:12px;color:#555;border:1px solid #f48fb1;">
+          📱 A payment request will be sent to your JazzCash number.
+        </div>
+      </div>`;
+  }
+
+  g('orderPaySubmitBtn') && (g('orderPaySubmitBtn').style.display = 'inline-flex');
+}
+
+function fmtCardNum(el) {
+  let v = el.value.replace(/\D/g,'').substring(0,16);
+  el.value = v.replace(/(.{4})/g,'$1 ').trim();
+}
+
+async function confirmOrderPayment() {
+  if (!selectedFulfillment)    { showToast('⚠️ Please select Pickup or Delivery'); return; }
+  if (!selectedOrderPayMethod) { showToast('⚠️ Please select a payment method'); return; }
+
+  // Capture method BEFORE anything resets it
+  const payMethod = selectedOrderPayMethod;
+
+  // Swap modal content to a spinner so user isn't left staring at a blank screen
+  const modalInner = g('orderPaymentModal')?.firstElementChild;
+  if (modalInner) {
+    modalInner.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:56px 24px;gap:20px;">
+        <div style="width:54px;height:54px;border:5px solid #f0e0d8;border-top-color:#E84800;border-radius:50%;animation:aph-spin 0.8s linear infinite;"></div>
+        <div style="font-weight:800;font-size:16px;color:#111;">Placing your order…</div>
+        <div style="font-size:13px;color:#888;text-align:center;">Please wait, do not close this window.</div>
+      </div>
+      <style>@keyframes aph-spin{to{transform:rotate(360deg)}}</style>`;
+  }
+
+  // Place orders (this is where the 4-5s delay actually happens)
+  const lastOrder = await placeOrder(payMethod, selectedFulfillment || 'pickup');
+
+  closeOrderPaymentModal();
+
+  // Do NOT prompt review here — reviews are only available after order is Delivered
+  // The review button appears in the Orders list once status = 'Delivered'
+  setTimeout(() => showSection('orders', null), 900);
+}
+
+/* ══════════════════════════════════════════════
+   NOTIFICATIONS (SMTP Email + SMS)
+══════════════════════════════════════════════ */
+
+async function sendOrderNotification({ orderId, partName, shopName, shopPhone, customerName, customerEmail, paymentMethod, total }) {
+  await window.Notify.sendOrderConfirmation({
+    toEmail:       customerEmail,
+    toName:        customerName,
+    orderId,
+    partName,
+    shopName,
+    shopPhone,
+    paymentMethod,
+    total
+  });
+}
+
+/* ══════════════════════════════════════════════════════
+   AI DIAGNOSTICS
+   Two modes:
+   1. Part Recognition — image + car name → identify part
+                         → populate search filters
+   2. Mechanic Mode    — symptoms + car info → diagnosis
+                         → suggested parts to search
+══════════════════════════════════════════════════════ */
+
+/* ── Gemini API + Rate Limiter ────────────────────────────────────────────────────
+   Free tier limits: 15 req/min, 1500 req/day
+   We enforce: max 12/min (safety buffer) + 4s cooldown between calls
+   ──────────────────────────────────────────────────── */
+
+const GEMINI_API_KEY = 'AIzaSyDwqJKWYiQ7YP7iXs3Sc-mV-Jvu9YQh4GA';
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
+
+const aiRateLimit = {
+  callTimestamps: [],
+  MAX_PER_MIN: 12,
+  COOLDOWN_MS: 4000,
+  lastCallTime: 0,
+
+  canCall() {
+    const now = Date.now();
+    this.callTimestamps = this.callTimestamps.filter(t => now - t < 60000);
+    const sinceLastCall = now - this.lastCallTime;
+    if (sinceLastCall < this.COOLDOWN_MS) {
+      const wait = Math.ceil((this.COOLDOWN_MS - sinceLastCall) / 1000);
+      throw new Error(`Please wait ${wait}s before trying again.`);
+    }
+    if (this.callTimestamps.length >= this.MAX_PER_MIN) {
+      const oldest = this.callTimestamps[0];
+      const wait = Math.ceil((60000 - (now - oldest)) / 1000);
+      throw new Error(`Too many requests. Try again in ${wait}s.`);
+    }
+  },
+
+  record() {
+    const now = Date.now();
+    this.callTimestamps.push(now);
+    this.lastCallTime = now;
+  }
+};
+
+async function callGemini(prompt) {
+  aiRateLimit.canCall();
+  aiRateLimit.record();
+  const res = await fetch(GEMINI_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    if (res.status === 429) throw new Error('Gemini rate limit hit. Please wait a minute and try again.');
+    throw new Error('API error: ' + (err?.error?.message || res.statusText));
+  }
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+async function callGeminiVision(base64Image, prompt) {
+  aiRateLimit.canCall();
+  aiRateLimit.record();
+  const res = await fetch(GEMINI_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{
+        parts: [
+          { inline_data: { mime_type: 'image/jpeg', data: base64Image } },
+          { text: prompt }
+        ]
+      }]
+    })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    if (res.status === 429) throw new Error('Gemini rate limit hit. Please wait a minute and try again.');
+    throw new Error('API error: ' + (err?.error?.message || res.statusText));
+  }
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+let aiPartImageBase64 = null;   // stores uploaded image
+let aiSuggestedParts  = [];     // parts AI wants to search
+let mechSuggestedParts = [];    // parts from mechanic mode
+
+/* ── Mode switcher ─────────────────────────────────── */
+function switchAIMode(mode) {
+  const isPart = mode === 'part';
+  g('aiPanelPart').style.display     = isPart ? '' : 'none';
+  g('aiPanelMechanic').style.display = isPart ? 'none' : '';
+  g('modePartBtn').classList.toggle('active', isPart);
+  g('modeMechBtn').classList.toggle('active', !isPart);
+}
+
+/* ── Image upload handling ─────────────────────────── */
+function handleImageUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    aiPartImageBase64 = ev.target.result.split(',')[1]; // strip data: prefix
+    g('uploadPreview').src = ev.target.result;
+    g('uploadPreview').style.display = 'block';
+    g('uploadPlaceholder').style.display = 'none';
+    g('uploadClearBtn').style.display = 'inline-flex';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearImage() {
+  aiPartImageBase64 = null;
+  g('partImageInput').value = '';
+  g('uploadPreview').style.display = 'none';
+  g('uploadPlaceholder').style.display = 'flex';
+  g('uploadClearBtn').style.display = 'none';
+  g('aiPartResult').style.display = 'none';
+}
+
+/* ── Helper: set button loading state ─────────────── */
+function setAIBtn(btnId, textId, loading, defaultText) {
+  const btn = g(btnId);
+  btn.disabled = loading;
+  g(textId).innerHTML = loading
+    ? '<span class="ai-spinner"></span> Analysing...'
+    : defaultText;
+}
+
+/* ── Part Recognition ──────────────────────────────── */
+async function runPartRecognition() {
+  const carName = (g('aiCarName').value || '').trim();
+  const notes   = (g('aiNotes').value  || '').trim();
+
+  if (!aiPartImageBase64) {
+    return alert('Please upload an image of the part first.');
+  }
+
+  setAIBtn('aiPartRunBtn', 'aiPartBtnText', true, '🤖 Identify Part & Search');
+  g('aiPartResult').style.display = 'none';
+
+  const prompt = [
+    'You are an expert auto parts identifier.',
+    carName ? `The car is: ${carName}.` : '',
+    notes   ? `User notes: ${notes}.`   : '',
+    '',
+    'Analyse the image and respond in this EXACT JSON format (no markdown, no backticks):',
+    '{',
+    '  "identified": true/false,',
+    '  "part_name": "exact part name",',
+    '  "category": "Engine|Brakes|Electrical|Suspension|Tyres|Body Parts|Cooling|Fuel System|Other",',
+    '  "confidence": "High|Medium|Low",',
+    '  "description": "2-3 sentence professional description of the part and its function",',
+    '  "condition_notes": "brief note on visible condition from the image",',
+    '  "search_terms": ["term1", "term2", "term3"],',
+    '  "compatible_makes": ["Make1", "Make2"]',
+    '}'
+  ].filter(Boolean).join('\n');
+
+  try {
+    const raw = await callGeminiVision(aiPartImageBase64, prompt);
+    let parsed;
+    try { parsed = JSON.parse(raw.replace(/```json|```/g, '').trim()); }
+    catch { throw new Error('Could not parse AI response.'); }
+
+    renderPartResult(parsed, carName);
+
+  } catch (err) {
+    console.error('[AI Part]', err);
+    showAIError('aiPartResultContent', 'aiPartResult', err.message);
+  } finally {
+    setAIBtn('aiPartRunBtn', 'aiPartBtnText', false, '🤖 Identify Part & Search');
+  }
+}
+
+function renderPartResult(p, carName) {
+  const box = g('aiPartResultContent');
+  if (!p.identified) {
+    box.innerHTML = `<div class="ai-no-result">
+      <span>🔍</span>
+      <p>Could not identify a car part in this image. Try a clearer photo with better lighting.</p>
+    </div>`;
+    g('aiPartActions').style.display = 'none';
+    g('aiPartResult').style.display = '';
+    return;
+  }
+
+  const confColor = { High: '#22c55e', Medium: '#f59e0b', Low: '#ef4444' };
+  box.innerHTML = `
+    <div class="ai-part-card">
+      <div class="ai-part-main">
+        <div class="ai-part-name">${p.part_name}</div>
+        <div class="ai-part-meta">
+          <span class="ai-tag cat-tag">${p.category}</span>
+          <span class="ai-tag conf-tag" style="background:${confColor[p.confidence]}20;color:${confColor[p.confidence]};border-color:${confColor[p.confidence]}40;">
+            ${p.confidence} Confidence
+          </span>
+        </div>
+      </div>
+      <p class="ai-desc">${p.description}</p>
+      ${p.condition_notes ? `<div class="ai-condition"><span>👁️ Condition:</span> ${p.condition_notes}</div>` : ''}
+      ${p.compatible_makes?.length ? `<div class="ai-makes"><span>🚗 Compatible:</span> ${p.compatible_makes.join(', ')}</div>` : ''}
+      <div class="ai-search-preview">
+        <span>🔍 Will search for:</span>
+        <div class="ai-terms">${(p.search_terms || []).map(t => `<span class="ai-term">${t}</span>`).join('')}</div>
+      </div>
+    </div>`;
+
+  aiSuggestedParts = { terms: p.search_terms, make: carName, category: p.category };
+  g('aiPartActions').style.display = '';
+  g('aiPartResult').style.display = '';
+}
+
+/* ── Mechanic Mode ─────────────────────────────────── */
+async function runMechanicMode() {
+  const car      = (g('mechCarName').value  || '').trim();
+  const symptoms = (g('mechSymptoms').value || '').trim();
+  const when     = g('mechWhen').value;
+  const lights   = g('mechLights').value;
+  const mileage  = (g('mechMileage').value || '').trim();
+
+  if (!car)      return alert('Please enter your car name/model.');
+  if (!symptoms) return alert('Please describe the symptoms.');
+
+  setAIBtn('aiMechRunBtn', 'aiMechBtnText', true, '🔧 Diagnose My Car');
+  g('aiMechResult').style.display = 'none';
+
+  const prompt = [
+    'You are a professional automotive mechanic with 20+ years of experience.',
+    `Car: ${car}`,
+    mileage ? `Mileage: ${mileage}` : '',
+    `Symptoms: ${symptoms}`,
+    when    ? `When it happens: ${when}` : '',
+    lights !== 'none' ? `Warning lights: ${lights}` : '',
+    '',
+    'Provide a professional diagnosis. Respond in this EXACT JSON format (no markdown, no backticks):',
+    '{',
+    '  "probable_cause": "Most likely cause in 1-2 sentences",',
+    '  "severity": "Critical|High|Medium|Low",',
+    '  "explanation": "Professional 3-4 sentence explanation of whats happening mechanically",',
+    '  "immediate_action": "What the driver should do right now",',
+    '  "parts_needed": [',
+    '    { "name": "Part Name", "reason": "Why this part", "urgency": "Immediate|Soon|Preventive" }',
+    '  ],',
+    '  "estimated_cost_pkr": "rough estimate range e.g. PKR 2,000-5,000",',
+    '  "diy_possible": true/false,',
+    '  "mechanic_note": "professional closing advice"',
+    '}'
+  ].filter(Boolean).join('\n');
+
+  try {
+    const raw = await callGemini(prompt);
+    let parsed;
+    try { parsed = JSON.parse(raw.replace(/```json|```/g, '').trim()); }
+    catch { throw new Error('Could not parse AI response.'); }
+
+    renderMechResult(parsed, car);
+
+  } catch (err) {
+    console.error('[AI Mech]', err);
+    showAIError('aiMechResultContent', 'aiMechResult', err.message);
+  } finally {
+    setAIBtn('aiMechRunBtn', 'aiMechBtnText', false, '🔧 Diagnose My Car');
+  }
+}
+
+function renderMechResult(d, car) {
+  const sevColor = { Critical:'#ef4444', High:'#f97316', Medium:'#f59e0b', Low:'#22c55e' };
+  const sevBg    = { Critical:'#fef2f2', High:'#fff7ed', Medium:'#fffbeb', Low:'#f0fdf4' };
+  const col      = sevColor[d.severity] || '#888';
+  const bg       = sevBg[d.severity]   || '#f9f9f9';
+
+  const partsHTML = (d.parts_needed || []).map(p => {
+    const urg = { Immediate:'#ef4444', Soon:'#f97316', Preventive:'#22c55e' };
+    return `<div class="mech-part-row">
+      <div class="mech-part-info">
+        <span class="mech-part-name">${p.name}</span>
+        <span class="mech-urg-badge" style="background:${(urg[p.urgency]||'#888')}20;color:${urg[p.urgency]||'#888'}">${p.urgency}</span>
+      </div>
+      <p class="mech-part-reason">${p.reason}</p>
+    </div>`;
+  }).join('');
+
+  g('aiMechResultContent').innerHTML = `
+    <div class="mech-diagnosis">
+      <div class="mech-severity-banner" style="background:${bg};border-color:${col}40;">
+        <div class="mech-sev-label" style="color:${col}">⚠️ ${d.severity} Severity</div>
+        <div class="mech-cause">${d.probable_cause}</div>
+      </div>
+
+      <div class="mech-section">
+        <div class="mech-section-label">🔍 WHAT'S HAPPENING</div>
+        <p>${d.explanation}</p>
+      </div>
+
+      <div class="mech-section alert-section">
+        <div class="mech-section-label">⚡ IMMEDIATE ACTION</div>
+        <p>${d.immediate_action}</p>
+      </div>
+
+      ${partsHTML ? `<div class="mech-section">
+        <div class="mech-section-label">🔩 PARTS NEEDED</div>
+        <div class="mech-parts-list">${partsHTML}</div>
+      </div>` : ''}
+
+      <div class="mech-footer-row">
+        <div class="mech-cost"><span>💰 Est. Cost:</span> ${d.estimated_cost_pkr || 'Varies'}</div>
+        <div class="mech-diy"><span>${d.diy_possible ? '🟢 DIY Possible' : '🔴 Professional Required'}</span></div>
+      </div>
+
+      ${d.mechanic_note ? `<div class="mech-note">💬 ${d.mechanic_note}</div>` : ''}
+    </div>`;
+
+  mechSuggestedParts = (d.parts_needed || []).map(p => cleanPartName(p.name));
+  g('aiMechActions').style.display = mechSuggestedParts.length ? '' : 'none';
+  g('aiMechResult').style.display = '';
+}
+
+/* ── Clean AI-returned part names for search ───────── */
+function cleanPartName(name) {
+  return name
+    .replace(/\(s\)/gi, '')     // "Injector(s)"  → "Injector"
+    .replace(/\(es\)/gi, '')    // "Switch(es)"   → "Switch"
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/* ── Apply AI search to Browse section ────────────── */
+function applyAISearch() {
+  if (!aiSuggestedParts?.terms?.length) return;
+  g('searchInput').value = aiSuggestedParts.terms[0];
+  const makeSelect = g('filterMake');
+  if (aiSuggestedParts.make) {
+    const makes = ['Toyota','Honda','Suzuki','Hyundai','Kia','Nissan'];
+    const match = makes.find(m => aiSuggestedParts.make.toLowerCase().includes(m.toLowerCase()));
+    if (match) makeSelect.value = match;
+  }
+  filterParts();
+  showSection('browse', document.querySelector('.nav-item'));
+}
+
+function applyMechSearch() {
+  if (!mechSuggestedParts.length) return;
+  g('searchInput').value = mechSuggestedParts[0];
+  filterParts();
+  showSection('browse', document.querySelector('.nav-item'));
+}
+
+/* ── Error fallback ────────────────────────────────── */
+function showAIError(contentId, boxId, message) {
+  const msg = message || 'Something went wrong. Please check your connection and try again.';
+  g(contentId).innerHTML = `<div class="ai-no-result">
+    <span>⚠️</span>
+    <p>${msg}</p>
+  </div>`;
+  g(boxId).style.display = '';
 }

@@ -6,11 +6,23 @@
     <title>Customer Dashboard — Auto Parts Hunt</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="dashboard_style.css" />
-  </head>
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <!-- Notification subsystem — load in dependency order -->
+  <script src="../services/IEmailService.js"></script>
+  <script src="../services/EmailJSService.js"></script>
+  <script src="../services/TemplateManager.js"></script>
+  <script src="../services/NotificationService.js"></script>
+  <script src="../services/NotifyInit.js"></script>
+  <link rel="icon" type="image/png" href="/favicon.png">
+</head>
   <body>
 
     <!-- ══ SIDEBAR ══ -->
+    <!-- Overlay closes sidebar when tapping outside on mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
     <aside class="sidebar" id="sidebar">
+      <button class="sidebar-close" onclick="closeSidebar()">&#x2715;</button>
       <div class="sidebar-logo">
         <span class="logo-auto">AUTO</span><span class="logo-parts">PARTS</span><br/>
         <span class="logo-hunt">HUNT</span>
@@ -44,6 +56,10 @@
         <a href="#" class="nav-item" onclick="showSection('profile',this)">
           <span class="nav-icon">👤</span> Profile
         </a>
+        <a href="#" class="nav-item ai-nav-item" onclick="showSection('ai',this)">
+          <span class="nav-icon"></span> AI Diagnostics
+          <span class="ai-nav-badge">NEW</span>
+        </a>
       </nav>
 
       <button class="logout-btn" onclick="confirmLogout()">
@@ -56,7 +72,7 @@
 
       <!-- TOPBAR -->
       <div class="topbar">
-        <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+        <button class="sidebar-toggle" id="sidebarToggleBtn" onclick="toggleSidebar()">&#9776;</button>
         <div class="topbar-title" id="topbarTitle">Browse Parts</div>
         <div class="topbar-right">
           <button class="cart-btn" onclick="showSection('cart',null)">
@@ -149,10 +165,10 @@
             <div class="summary-card">
               <h3 class="summary-title">ORDER SUMMARY</h3>
               <div class="summary-row"><span>Subtotal</span><span id="subtotal">PKR 0</span></div>
-              <div class="summary-row"><span>Delivery</span><span>PKR 200</span></div>
+              <div class="summary-row"><span>Platform Fee</span><span>PKR 100</span></div>
               <div class="summary-divider"></div>
-              <div class="summary-row total"><span>TOTAL</span><span id="totalPrice" class="orange">PKR 200</span></div>
-              <button class="orange-btn full-btn" onclick="placeOrder()">Place Order →</button>
+              <div class="summary-row total"><span>TOTAL</span><span id="totalPrice" class="orange">PKR 100</span></div>
+              <button class="orange-btn full-btn" onclick="openOrderPaymentModal()">Place Order →</button>
               <button class="outline-btn full-btn mt8" onclick="clearCart()">Clear Cart</button>
             </div>
           </div>
@@ -232,14 +248,214 @@
               <button class="orange-btn" onclick="saveProfile()">Save Changes</button>
               <button class="outline-btn" onclick="confirmLogout()">Logout</button>
             </div>
+            <div style="margin-top:24px;padding-top:20px;border-top:1px solid #f0f0f0;">
+              <p style="font-size:12px;color:#aaa;margin-bottom:10px;">⚠️ Deleting your account is permanent and cannot be undone.</p>
+              <button class="delete-account-btn" onclick="confirmDeleteAccount()">🗑️ Delete My Account</button>
+            </div>
           </div>
         </div>
+      </section>
+
+      <!-- ══ AI DIAGNOSTICS ══ -->
+      <section class="section" id="sec-ai">
+        <div class="section-heading">
+          <div>
+            <div class="tag">POWERED BY GEMINI PRO</div>
+            <h2 class="sec-title">AI DIAGNOSTICS</h2>
+          </div>
+        </div>
+
+        <!-- Mode Toggle -->
+        <div class="ai-mode-toggle">
+          <button class="ai-mode-btn active" id="modePartBtn" onclick="switchAIMode('part')">
+            <span>📸</span> Part Recognition
+          </button>
+          <button class="ai-mode-btn" id="modeMechBtn" onclick="switchAIMode('mechanic')">
+            <span>🔧</span> Mechanic Mode
+          </button>
+        </div>
+
+        <!-- ── PART RECOGNITION MODE ── -->
+        <div class="ai-panel" id="aiPanelPart">
+          <div class="ai-panel-header">
+            <h3>Part Recognition</h3>
+            <p>Upload a photo of a car part and we'll identify it and search our catalogue for you.</p>
+          </div>
+          <div class="ai-form-grid">
+            <div class="ai-upload-zone" id="uploadZone">
+              <input type="file" id="partImageInput" accept="image/*" onchange="handleImageUpload(event)" hidden/>
+              <div class="upload-placeholder" id="uploadPlaceholder" onclick="g('partImageInput').click()">
+                <div class="upload-icon">📷</div>
+                <p>Click to upload part image</p>
+                <span>JPG, PNG, WEBP supported</span>
+              </div>
+              <img id="uploadPreview" class="upload-preview" style="display:none;" alt="Part preview"/>
+              <button class="upload-clear-btn" id="uploadClearBtn" style="display:none;" onclick="clearImage()">✕ Remove</button>
+            </div>
+            <div class="ai-inputs">
+              <div class="ai-field">
+                <label>CAR NAME / MODEL</label>
+                <input type="text" id="aiCarName" placeholder="e.g. Toyota Corolla 2018"/>
+              </div>
+              <div class="ai-field">
+                <label>ADDITIONAL NOTES (optional)</label>
+                <textarea id="aiNotes" placeholder="e.g. front left side, looks damaged..." rows="3"></textarea>
+              </div>
+              <button class="ai-run-btn" id="aiPartRunBtn" onclick="runPartRecognition()">
+                <span id="aiPartBtnText">Identify Part & Search</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- AI Result -->
+          <div class="ai-result-box" id="aiPartResult" style="display:none;">
+            <div class="ai-result-header">
+              <span class="ai-result-label">AI ANALYSIS</span>
+              <button class="ai-result-close" onclick="g('aiPartResult').style.display='none'">✕</button>
+            </div>
+            <div class="ai-result-content" id="aiPartResultContent"></div>
+            <div class="ai-result-actions" id="aiPartActions" style="display:none;">
+              <button class="ai-search-btn" onclick="applyAISearch()">🔍 Search These Parts</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── MECHANIC MODE ── -->
+        <div class="ai-panel" id="aiPanelMechanic" style="display:none;">
+          <div class="ai-panel-header">
+            <h3>Mechanic Mode</h3>
+            <p>Describe what's wrong with your car and get a professional diagnosis with suggested fixes.</p>
+          </div>
+          <div class="ai-mech-form">
+            <div class="ai-mech-row">
+              <div class="ai-field">
+                <label>CAR NAME / MODEL</label>
+                <input type="text" id="mechCarName" placeholder="e.g. Honda Civic 2020, 1.5L Turbo"/>
+              </div>
+              <div class="ai-field">
+                <label>MILEAGE (optional)</label>
+                <input type="text" id="mechMileage" placeholder="e.g. 85,000 km"/>
+              </div>
+            </div>
+            <div class="ai-field">
+              <label>DESCRIBE THE SYMPTOMS</label>
+              <textarea id="mechSymptoms" placeholder="e.g. Engine makes a knocking sound on startup, gets worse when accelerating. Also noticed smoke from the hood occasionally..." rows="4"></textarea>
+            </div>
+            <div class="ai-mech-row">
+              <div class="ai-field">
+                <label>WHEN DOES IT HAPPEN?</label>
+                <select id="mechWhen">
+                  <option value="">Select timing</option>
+                  <option>On startup</option>
+                  <option>While driving</option>
+                  <option>When braking</option>
+                  <option>When turning</option>
+                  <option>At high speed</option>
+                  <option>When idling</option>
+                  <option>All the time</option>
+                </select>
+              </div>
+              <div class="ai-field">
+                <label>WARNING LIGHTS ON?</label>
+                <select id="mechLights">
+                  <option value="none">None</option>
+                  <option>Check Engine</option>
+                  <option>Battery</option>
+                  <option>Oil Pressure</option>
+                  <option>Temperature</option>
+                  <option>Brake Warning</option>
+                  <option>ABS</option>
+                  <option>Multiple lights</option>
+                </select>
+              </div>
+            </div>
+            <button class="ai-run-btn mech-btn" id="aiMechRunBtn" onclick="runMechanicMode()">
+              <span id="aiMechBtnText">Diagnose My Car</span>
+            </button>
+          </div>
+
+          <!-- Mechanic Result -->
+          <div class="ai-result-box mech-result" id="aiMechResult" style="display:none;">
+            <div class="ai-result-header">
+              <span class="ai-result-label">🔧 MECHANIC DIAGNOSIS</span>
+              <button class="ai-result-close" onclick="g('aiMechResult').style.display='none'">✕</button>
+            </div>
+            <div class="ai-result-content" id="aiMechResultContent"></div>
+            <div class="ai-result-actions" id="aiMechActions" style="display:none;">
+              <button class="ai-search-btn" onclick="applyMechSearch()">🔍 Find These Parts</button>
+            </div>
+          </div>
+        </div>
+
       </section>
 
     </main>
 
 
     <!-- REVIEW MODAL -->
+    <!-- ORDER PAYMENT MODAL -->
+    <div class="modal-overlay" id="orderPaymentModal" style="display:none;">
+      <div class="modal-box" style="max-width:480px;width:94%;padding:32px 28px;max-height:90vh;overflow-y:auto;">
+        <div style="font-size:36px;margin-bottom:6px;">🛒</div>
+        <h3 class="modal-title">PLACE ORDER</h3>
+        <div class="pay-total-row">
+          Order Total: <strong id="orderPayTotal">PKR 0</strong>
+        </div>
+
+        <!-- ── STEP 1: FULFILLMENT TYPE ── -->
+        <div style="margin:18px 0 6px;">
+          <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;color:#aaa;text-transform:uppercase;margin-bottom:10px;">HOW WOULD YOU LIKE TO RECEIVE YOUR ORDER?</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <button class="fulfill-opt" id="fulfillPickup" onclick="selectFulfillment('pickup')" style="border:2px solid #e5e5e5;border-radius:10px;padding:14px 10px;background:#fff;cursor:pointer;text-align:center;transition:all 0.2s;font-family:Poppins,sans-serif;">
+              <div style="font-size:26px;">🏪</div>
+              <div style="font-size:11px;font-weight:700;margin-top:6px;color:#333;">PICKUP</div>
+              <div style="font-size:10px;color:#888;margin-top:2px;">Collect from shop</div>
+            </button>
+            <button class="fulfill-opt" id="fulfillDelivery" disabled style="border:2px solid #f0f0f0;border-radius:10px;padding:14px 10px;background:#fafafa;cursor:not-allowed;text-align:center;font-family:Poppins,sans-serif;position:relative;opacity:0.7;">
+              <div style="font-size:26px;">🚚</div>
+              <div style="font-size:11px;font-weight:700;margin-top:6px;color:#aaa;">DELIVERY</div>
+              <div style="font-size:10px;margin-top:4px;background:#E84800;color:#fff;border-radius:20px;padding:2px 8px;display:inline-block;font-weight:700;letter-spacing:0.05em;">COMING SOON</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- ── PICKUP ADDRESS INFO ── -->
+        <div id="pickupAddressInfo" style="display:none;margin:10px 0 4px;background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:12px 14px;font-size:12px;color:#555;">
+          <div style="font-weight:700;color:#333;margin-bottom:4px;">📍 Pickup Address</div>
+          <div id="pickupAddressText" style="color:#555;line-height:1.5;">Loading shop address...</div>
+        </div>
+
+        <!-- ── STEP 2: PAYMENT METHOD ── -->
+        <div id="paymentMethodSection" style="display:none;">
+          <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;color:#aaa;text-transform:uppercase;margin:16px 0 10px;">SELECT PAYMENT METHOD</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+            <button class="cust-pay-opt" data-method="cod" onclick="selectOrderPayMethod('cod')">
+              <div style="font-size:24px;">🏠</div>
+              <div style="font-size:11px;font-weight:700;margin-top:4px;">CASH ON DELIVERY</div>
+            </button>
+            <button class="cust-pay-opt" data-method="card" onclick="selectOrderPayMethod('card')">
+              <div style="font-size:24px;">💳</div>
+              <div style="font-size:11px;font-weight:700;margin-top:4px;">VISA / CARD</div>
+            </button>
+            <button class="cust-pay-opt" data-method="easypaisa" onclick="selectOrderPayMethod('easypaisa')">
+              <div style="font-size:24px;">📗</div>
+              <div style="font-size:11px;font-weight:700;margin-top:4px;">EASYPAISA</div>
+            </button>
+            <button class="cust-pay-opt" data-method="jazzcash" onclick="selectOrderPayMethod('jazzcash')">
+              <div style="font-size:24px;">📕</div>
+              <div style="font-size:11px;font-weight:700;margin-top:4px;">JAZZCASH</div>
+            </button>
+          </div>
+          <div id="orderPayFields" style="margin-bottom:16px;"></div>
+        </div><!-- /paymentMethodSection -->
+
+        <div class="modal-btns">
+          <button class="cancel-modal" onclick="closeOrderPaymentModal()">Cancel</button>
+          <button class="confirm-pay-btn" id="orderPaySubmitBtn" style="display:none;" onclick="confirmOrderPayment()">Confirm &amp; Place Order</button>
+        </div>
+      </div>
+    </div>
+
     <div class="modal-overlay" id="reviewModal" style="display:none;">
       <div class="modal-box" style="max-width:480px;width:94%;padding:40px 36px;">
         <div style="font-size:36px;margin-bottom:8px;">⭐</div>
@@ -265,6 +481,19 @@
         <div class="modal-btns">
           <button class="outline-btn" onclick="skipReview()">Skip</button>
           <button class="orange-btn" onclick="submitReview()">Submit Review →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DELETE ACCOUNT MODAL -->
+    <div class="modal-overlay" id="deleteAccountModal" style="display:none;">
+      <div class="modal-box">
+        <div class="modal-icon">🗑️</div>
+        <h3 class="modal-title">DELETE ACCOUNT?</h3>
+        <p class="modal-desc">This will permanently delete your account and all your data. This cannot be undone.</p>
+        <div class="modal-btns">
+          <button class="outline-btn" onclick="closeModal()">Cancel</button>
+          <button class="danger-btn" onclick="doDeleteAccount()">Yes, Delete</button>
         </div>
       </div>
     </div>
