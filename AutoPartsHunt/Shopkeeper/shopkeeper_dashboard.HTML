@@ -6,11 +6,29 @@
   <title>Shopkeeper Dashboard — Auto Parts Hunt</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;900&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="shopkeeper_style.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <!-- Notification subsystem — load in dependency order -->
+  <script src="../services/IEmailService.js"></script>
+  <script src="../services/EmailJSService.js"></script>
+  <script src="../services/TemplateManager.js"></script>
+  <script src="../services/NotificationService.js"></script>
+  <script src="../services/NotifyInit.js"></script>
+  <link rel="icon" type="image/png" href="/favicon.png">
 </head>
 <body>
+<!-- Loading Overlay - replaces body opacity hack (fixes low contrast / inconsistency issues) -->
+<div id="loadingOverlay" style="display:none;position:fixed;inset:0;background:rgba(255,255,255,0.85);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:16px;">
+  <div style="width:44px;height:44px;border:4px solid #f0f0f0;border-top-color:#E84800;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+  <div style="font-family:Poppins,sans-serif;font-weight:700;font-size:14px;color:#333;">Loading your dashboard...</div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+  <!-- Overlay closes sidebar when tapping outside on mobile -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
   <!-- ══ SIDEBAR ══ -->
   <aside class="sidebar" id="sidebar">
+    <button class="sidebar-close" onclick="closeSidebar()">&#x2715;</button>
     <div class="sb-logo">
       <span class="lo-a">AUTO</span><span class="lo-p">PARTS</span>
       <div class="lo-h">HUNT</div>
@@ -24,6 +42,7 @@
         <span class="urole">Shopkeeper</span>
       </div>
       <div class="verify-badge" id="verifyBadge">⏳ Pending</div>
+      <button class="verify-now-btn" id="verifyNowBtn" onclick="openVerifyModal()" style="display:none;">Get Verified</button>
     </div>
 
     <nav class="sb-nav">
@@ -41,6 +60,10 @@
       <a href="#" class="nav-item" onclick="showSec('profile',this)">
         <span class="ni">🏪</span> Shop Profile
       </a>
+      <a href="#" class="nav-item sk-ai-nav" onclick="showSec('ai',this)">
+        <span class="ni"></span> AI Assistant
+        <span class="nbadge" style="background:#E84800;color:#fff;font-size:9px;">NEW</span>
+      </a>
     </nav>
 
     <button class="logout-btn" onclick="confirmLogout()">⏻ Logout</button>
@@ -51,7 +74,7 @@
 
     <!-- TOPBAR -->
     <div class="topbar">
-      <button class="tog-btn" onclick="toggleSidebar()">☰</button>
+      <button class="tog-btn" id="sidebarToggleBtn" onclick="toggleSidebar()">&#9776;</button>
       <div class="tb-title" id="tbTitle">My Parts</div>
       <div class="tb-right">
         <div class="shop-chip" id="shopChip"><span>🏪</span> <span id="shopChipName">...</span></div>
@@ -97,8 +120,8 @@
           <table class="dtbl" id="partsTable">
             <thead>
               <tr>
-                <th>ID</th><th>PART</th><th>MAKE</th>
-                <th>CAT</th><th>PRICE</th><th>STOCK</th>
+                <th>ID</th><th>PART</th><th>PART NO.</th><th>MAKE</th>
+                <th>CAT</th><th>COND</th><th>PRICE</th><th>STOCK</th>
                 <th>STATUS</th><th>ACTIONS</th>
               </tr>
             </thead>
@@ -237,10 +260,35 @@
         <h2 class="ptitle">ORDERS FOR MY SHOP</h2>
       </div>
       <div class="panel full-panel">
+        <!-- Filter bar -->
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px;">
+          <input id="orderSearchInput" type="text" placeholder="🔍  Search by Order ID or customer…"
+            oninput="filterOrders()"
+            style="flex:1;min-width:200px;padding:9px 14px;border:1.5px solid #e5e5e5;border-radius:8px;font-family:Poppins,sans-serif;font-size:13px;outline:none;"/>
+          <select id="orderStatusFilter" onchange="filterOrders()"
+            style="padding:9px 14px;border:1.5px solid #e5e5e5;border-radius:8px;font-family:Poppins,sans-serif;font-size:13px;outline:none;background:#fff;cursor:pointer;">
+            <option value="">All Statuses</option>
+            <option value="Processing">Processing</option>
+            <option value="In Transit">In Transit</option>
+            <option value="Delivered">Delivered</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+          <select id="orderPayFilter" onchange="filterOrders()"
+            style="padding:9px 14px;border:1.5px solid #e5e5e5;border-radius:8px;font-family:Poppins,sans-serif;font-size:13px;outline:none;background:#fff;cursor:pointer;">
+            <option value="">All Payments</option>
+            <option value="Pending">Pay: Pending</option>
+            <option value="Completed">Pay: Completed</option>
+            <option value="Failed">Pay: Failed</option>
+          </select>
+          <button onclick="clearOrderFilters()"
+            style="padding:9px 16px;border:1.5px solid #e5e5e5;border-radius:8px;font-family:Poppins,sans-serif;font-size:12px;font-weight:700;background:#fff;cursor:pointer;color:#888;white-space:nowrap;">
+            ✕ Clear
+          </button>
+        </div>
         <div class="tbl-wrap">
           <table class="dtbl">
             <thead>
-              <tr><th>ORDER ID</th><th>CUSTOMER</th><th>PART</th><th>QTY</th><th>TOTAL</th><th>STATUS</th><th>DATE</th><th>ACTION</th></tr>
+              <tr><th>ORDER ID</th><th>CUSTOMER</th><th>PART</th><th>QTY</th><th>TOTAL</th><th>METHOD</th><th>PAY STATUS</th><th>ORDER STATUS</th><th>ACTION</th></tr>
             </thead>
             <tbody id="ordersBody">
               <!-- Orders populated by JS -->
@@ -267,14 +315,86 @@
           <div class="pfg"><label>CNIC</label><input type="text" id="pf-cnic" placeholder="42201-XXXXXXX-X"/></div>
           <div class="pfg full"><label>ADDRESS</label><input type="text" id="pf-address" placeholder="Your shop address..."/></div>
           <div class="pfg full"><label>SHOP DESCRIPTION</label><textarea rows="3" id="pf-desc" placeholder="Tell customers about your shop..."></textarea></div>
-          <div class="pfg"><label>VERIFICATION STATUS</label><div class="verify-status pending">⏳ Pending Verification</div></div>
+          <div class="pfg"><label>VERIFICATION STATUS</label><div id="verifyStatus"><div class="verify-status pending">⏳ Pending Verification</div></div></div>
+          <div class="pfg"><label>GET VERIFIED</label><button class="verify-now-btn-lg" id="verifyNowBtn2" onclick="openVerifyModal()">🔐 Pay &amp; Get Verified — PKR 500</button></div>
           <div class="pfg"><label>IS ACTIVE</label><div class="verify-status active-st">✓ Active</div></div>
-          <div class="pfg full"><button class="save-btn" onclick="saveProfile()">💾 SAVE PROFILE</button></div>
+          <div class="pfg full"><button class="save-btn" onclick="saveProfile()">SAVE PROFILE</button></div>
+          <div class="pfg full" style="margin-top:24px;padding-top:20px;border-top:1px solid #f0f0f0;">
+            <p style="font-size:12px;color:#aaa;margin-bottom:10px;">⚠️ Deleting your account will also permanently delete your shop and all listed parts.</p>
+            <button class="delete-account-btn" onclick="confirmDeleteAccount()">Delete My Account &amp; Shop</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════ SECTION: AI ASSISTANT ══════ -->
+    <section class="sec" id="sec-ai">
+      <div class="sec-head">
+        <div class="ptag">AI POWERED</div>
+        <h2 class="ptitle">AI BUSINESS ASSISTANT</h2>
+      </div>
+      <div class="panel full-panel" style="padding:28px 24px;">
+        <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+          <button class="sk-ai-mode-btn active" id="aiModeInventory" onclick="setAiMode('inventory',this)">📋 Inventory Advice</button>
+          <button class="sk-ai-mode-btn" id="aiModePricing" onclick="setAiMode('pricing',this)">💰 Pricing Help</button>
+          <button class="sk-ai-mode-btn" id="aiModeCustomer" onclick="setAiMode('customer',this)">👥 Customer Tips</button>
+        </div>
+
+        <div id="aiModeDesc" style="font-size:13px;color:#666;margin-bottom:16px;padding:12px 14px;background:#fafafa;border-radius:8px;border-left:3px solid #E84800;">
+          Ask for advice on managing your inventory, what parts to stock, or how to improve your listings.
+        </div>
+
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+          <textarea id="sk-ai-input" rows="3"
+            placeholder="e.g. Which parts are most in demand in Lahore for Toyota vehicles?"
+            style="flex:1;min-width:220px;padding:12px 14px;border:1.5px solid #e5e5e5;border-radius:8px;font-family:Poppins,sans-serif;font-size:13px;color:#333;outline:none;resize:vertical;transition:border 0.2s;"
+            onfocus="this.style.borderColor='#E84800'" onblur="this.style.borderColor='#e5e5e5'"></textarea>
+          <button onclick="runShopkeeperAI()" id="skAiRunBtn"
+            style="padding:12px 22px;background:#E84800;color:#fff;border:none;border-radius:8px;font-family:Poppins,sans-serif;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;transition:opacity 0.2s;">
+            <span id="skAiBtnTxt">Ask AI</span>
+          </button>
+        </div>
+
+        <div id="skAiResult" style="display:none;margin-top:20px;background:#f8f8f8;border-radius:10px;padding:18px 20px;border:1px solid #eee;">
+          <div style="font-size:10px;font-weight:800;letter-spacing:0.1em;color:#E84800;margin-bottom:10px;">🤖 AI RESPONSE</div>
+          <div id="skAiResultText" style="font-size:13px;color:#333;line-height:1.8;"></div>
         </div>
       </div>
     </section>
 
   </main>
+
+  <!-- ADDRESS PROMPT MODAL — shown when shop address is missing -->
+  <div class="modal-ov" id="addressPromptModal" style="display:none;">
+    <div class="modal-box" style="max-width:460px;width:92%;">
+      <div style="font-size:40px;margin-bottom:10px;">📍</div>
+      <h3 class="modal-title">SET YOUR SHOP ADDRESS</h3>
+      <p class="modal-desc">Customers who choose <strong>Pickup</strong> need to know where to find you. Please add your shop address before listing parts.</p>
+      <div style="margin:18px 0 6px;text-align:left;">
+        <label style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#aaa;text-transform:uppercase;display:block;margin-bottom:6px;">SHOP ADDRESS</label>
+        <input type="text" id="prompt-address" placeholder="e.g. Shop #12, Auto Market, Main Boulevard, Lahore"
+          style="width:100%;padding:12px 14px;border:1.5px solid #e5e5e5;border-radius:8px;font-family:Poppins,sans-serif;font-size:13px;color:#333;outline:none;transition:border 0.2s;"
+          onfocus="this.style.borderColor='#E84800'" onblur="this.style.borderColor='#e5e5e5'"/>
+      </div>
+      <div class="modal-btns" style="margin-top:20px;">
+        <button class="cancel-modal" onclick="closeAddressPromptModal()">Skip for now</button>
+        <button class="confirm-del" id="promptAddressSaveBtn" onclick="saveAddressFromPrompt()" style="background:#E84800;color:#fff;border:none;">✅ Save Address</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DELETE ACCOUNT MODAL -->
+  <div class="modal-ov" id="deleteAccountModal" style="display:none;">
+    <div class="modal-box">
+      <div style="font-size:40px;margin-bottom:14px;">🗑️</div>
+      <h3 class="modal-title">DELETE ACCOUNT?</h3>
+      <p class="modal-desc">This will permanently delete your account, your shop, and all listed parts. This cannot be undone.</p>
+      <div class="modal-btns">
+        <button class="cancel-modal" onclick="closeModal()">Cancel</button>
+        <button class="danger-btn" onclick="doDeleteAccount()">Yes, Delete Everything</button>
+      </div>
+    </div>
+  </div>
 
   <!-- DELETE MODAL -->
   <div class="modal-ov" id="delModal" style="display:none;">
@@ -298,6 +418,34 @@
       <div class="modal-btns">
         <button class="cancel-modal" onclick="closeModal()">Cancel</button>
         <button class="confirm-del" onclick="doLogout()">Yes, Logout</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- VERIFICATION PAYMENT MODAL -->
+  <div class="modal-ov" id="verifyModal" style="display:none;">
+    <div class="modal-box" style="max-width:480px;width:92%;max-height:90vh;overflow-y:auto;">
+      <div style="font-size:36px;margin-bottom:6px;"></div>
+      <h3 class="modal-title">GET YOUR SHOP VERIFIED</h3>
+      <p class="modal-desc" style="margin-bottom:18px;">One-time verification fee: <strong style="color:#E84800;">PKR 500</strong>. Choose your payment method:</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:18px;">
+        <button class="pay-opt" data-method="card" onclick="selectVerifyMethod('card')">
+          <div style="font-size:24px;">💳</div>
+          <div style="font-size:11px;font-weight:700;margin-top:4px;">VISA / CARD</div>
+        </button>
+        <button class="pay-opt" data-method="easypaisa" onclick="selectVerifyMethod('easypaisa')">
+          <div style="font-size:24px;">📗</div>
+          <div style="font-size:11px;font-weight:700;margin-top:4px;">EASYPAISA</div>
+        </button>
+        <button class="pay-opt" data-method="jazzcash" onclick="selectVerifyMethod('jazzcash')">
+          <div style="font-size:24px;">📕</div>
+          <div style="font-size:11px;font-weight:700;margin-top:4px;">JAZZCASH</div>
+        </button>
+      </div>
+      <div class="fgrid" id="verifyPayFields" style="margin-bottom:14px;"></div>
+      <div class="modal-btns">
+        <button class="cancel-modal" onclick="closeVerifyModal()">Cancel</button>
+        <button class="confirm-pay-btn" id="verifySubmitBtn" style="display:none;" onclick="submitVerifyPayment()">✅ Submit Payment</button>
       </div>
     </div>
   </div>
