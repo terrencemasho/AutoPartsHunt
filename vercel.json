@@ -1,6 +1,6 @@
 {
   "rewrites": [
-    { "source": "/favicon.ico", "destination": "/favicon.ico" },
+    { "source": "/favicon.png", "destination": "/favicon.png" },
     { "source": "/", "destination": "/AutoPartsHunt/Landing/landing_Page.HTML" },
     { "source": "/(.*)", "destination": "/AutoPartsHunt/$1" }
   ]
