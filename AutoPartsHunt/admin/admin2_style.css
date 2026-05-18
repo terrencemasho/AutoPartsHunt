@@ -38,7 +38,7 @@ body {
 .uname { font-size: 13px; font-weight: 700; color: #fff; }
 .urole { font-size: 10px; color: #555; letter-spacing: 0.06em; text-transform: uppercase; }
 
-.sb-nav { flex: 1; padding: 14px 12px; display: flex; flex-direction: column; gap: 2px; }
+.sb-nav { flex: 1; padding: 14px 12px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; min-height: 0; }
 
 .nav-group {
   font-size: 10px; font-weight: 700; color: #333;
@@ -331,4 +331,63 @@ body {
   .erd-grid  { grid-template-columns: 1fr 1fr; }
   .ov-grid   { grid-template-columns: 1fr 1fr; }
   .clock-chip { display: none; }
+}
+
+/* ── PAYMENT STATUS PILLS ── */
+.pay-status-pill {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.04em;
+  display: inline-block;
+}
+.pay-completed { background: #e6f9ed; color: #1a7a3c; }
+.pay-pending   { background: #fff3e0; color: #e65100; }
+.pay-failed    { background: #fdecea; color: #c62828; }
+
+/* ── DELETE ACCOUNT / DANGER ── */
+.danger-btn {
+  padding: 11px 24px;
+  background: #c62828;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-family: "Poppins", sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.danger-btn:hover { background: #a31f1f; }
+
+/* ── SIDEBAR OVERLAY (mobile close) ── */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 99;
+}
+.sidebar-overlay.active { display: block; }
+
+/* ── SIDEBAR CLOSE BUTTON (mobile) ── */
+.sidebar-close {
+  display: none;
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: #aaa;
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px;
+}
+.sidebar-close:hover { color: #fff; }
+
+@media (max-width: 900px) {
+  .sidebar { z-index: 100; }
+  .sidebar-close { display: block; }
 }

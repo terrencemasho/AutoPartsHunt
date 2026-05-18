@@ -8,8 +8,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   session = APP.requireAuth('admin');
   if (!session) return;
   startClock();
-  await Promise.all([renderShops(), renderUsers(), renderParts(), renderOrders(), renderReviews()]);
-  updateOverview();
+  // Load overview stats first (fast), then shops and users
+  // Orders and payments are heavy — load only when navigated to
+  await Promise.all([renderShops(), renderUsers(), updateOverview()]);
 });
 
 function g(id)      { return document.getElementById(id); }
@@ -24,30 +25,41 @@ async function showSec(id, el) {
   document.querySelectorAll('.sec').forEach(s => s.classList.remove('active'));
   g('sec-' + id).classList.add('active');
   if (el) { document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active')); el.classList.add('active'); }
-  const titles = { shops:'Shops Management', users:'User Management', parts:'All Parts', orders:'All Orders', reviews:'Reviews', overview:'System Overview' };
+  const titles = { shops:'Shops Management', users:'User Management', parts:'All Parts', orders:'All Orders', reviews:'Reviews', payments:'Payments', overview:'System Overview' };
   set('tbTitle', titles[id] || '');
   if (id === 'shops')    await renderShops();
   if (id === 'users')    await renderUsers();
   if (id === 'parts')    await renderParts();
   if (id === 'orders')   await renderOrders();
   if (id === 'reviews')  await renderReviews();
+  if (id === 'payments') await renderPayments();
   if (id === 'overview') await updateOverview();
+  // Close sidebar on mobile after navigation
+  if (window.innerWidth <= 900) closeSidebar();
 }
 
 /* ── OVERVIEW ── */
 async function updateOverview() {
-  const [shops, users, parts, orders] = await Promise.all([APP.getShops(), APP.getUsers(), APP.getParts(), APP.getOrders()]);
+  const [shops, users, parts, orders, payments] = await Promise.all([
+    APP.getShops(), APP.getUsers(), APP.getParts(), APP.getOrders(), APP.getAllPayments()
+  ]);
   const nonAdmin = users.filter(u => u.role !== 'admin');
   const revenue  = orders.reduce((s, o) => s + Number(o.total), 0);
 
-  set('nb-pending', shops.filter(s => !s.verified).length);
-  set('nb-users',   nonAdmin.length);
-  set('nb-parts',   parts.length);
-  set('nb-orders',  orders.length);
+  // Nav badges
+  set('nb-shops',    shops.length);
+  set('nb-users',    nonAdmin.length);
+  set('nb-parts',    parts.length);
+  set('nb-orders',   orders.length);
+  set('nb-payments', payments.length);
+
+  // Shop stats panel
   set('sv-total',    shops.length);
   set('sv-verified', shops.filter(s => s.verified).length);
   set('sv-pending',  shops.filter(s => !s.verified).length);
   set('sv-active',   shops.filter(s => s.active).length);
+
+  // Overview cards
   set('ov-shops',   shops.length);
   set('ov-users',   nonAdmin.length);
   set('ov-parts',   parts.length);
@@ -60,6 +72,7 @@ async function renderShops() {
   const tbody  = g('shopsBody');
   if (!tbody) return;
   tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:#aaa;">⏳ Loading...</td></tr>`;
+  try {
   const shops  = await APP.getShops();
   const q      = (g('shopQ')?.value || '').toLowerCase();
   const filter = g('shopFilter')?.value || '';
@@ -69,7 +82,7 @@ async function renderShops() {
   set('sv-verified', shops.filter(s => s.verified).length);
   set('sv-pending',  shops.filter(s => !s.verified).length);
   set('sv-active',   shops.filter(s => s.active).length);
-  set('nb-pending',  shops.filter(s => !s.verified).length);
+  set('nb-shops',    shops.length);
 
   const filtered = shops.filter(s => {
     const mq = !q || s.name.toLowerCase().includes(q) || s.owner.toLowerCase().includes(q) || (s.city||'').toLowerCase().includes(q);
@@ -95,6 +108,10 @@ async function renderShops() {
         <button class="toggle-active-btn ${s.active?'deactivate':''}" onclick="toggleShopActive('${s.id}')">${s.active?'Deactivate':'Activate'}</button>
       </div></td>
     </tr>`).join('');
+  } catch (e) {
+    console.error('renderShops error:', e);
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:#c93d00;">⚠️ Failed to load shops. Please try again.</td></tr>`;
+  }
 }
 
 async function verifyShop(id) {
@@ -141,8 +158,25 @@ async function renderUsers() {
       <td>${u.city||'—'}</td>
       <td style="color:#888;">${u.joined||'—'}</td>
       <td>${u.active ? '<span class="pill active-p">Active</span>' : '<span class="pill inactive-p">Inactive</span>'}</td>
-      <td><button class="toggle-active-btn ${u.active?'deactivate':''}" onclick="toggleUser('${u.id}')">${u.active?'Deactivate':'Activate'}</button></td>
+      <td>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button class="toggle-active-btn ${u.active?'deactivate':''}" onclick="toggleUser('${u.id}')">${u.active?'Deactivate':'Activate'}</button>
+          <button class="del-btn-sm" onclick="adminDeleteUser('${u.id}','${u.fname} ${u.lname}','${u.role}')">🗑️ Delete</button>
+        </div>
+      </td>
     </tr>`).join('');
+}
+
+async function adminDeleteUser(id, name, role) {
+  const msg = role === 'shopkeeper'
+    ? `Delete ${name}? This will also delete their shop and all listed parts.`
+    : `Delete ${name}? This will permanently remove their account.`;
+  showConfirm('🗑️', 'Delete User?', msg, async () => {
+    await APP.deleteUserAccount(id);
+    await renderUsers();
+    await updateOverview();
+    showToast('🗑️ User deleted');
+  });
 }
 
 async function toggleUser(id) {
@@ -192,25 +226,111 @@ async function removePart(id) {
 async function renderOrders() {
   const tbody = g('adminOrdersBody');
   if (!tbody) return;
-  tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:#aaa;">⏳ Loading...</td></tr>`;
-  const orders = await APP.getOrders();
-  set('nb-orders', orders.length);
-  if (!orders.length) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:60px;color:#aaa;"><div style="font-size:36px;margin-bottom:12px;">📦</div><div style="font-weight:700;font-size:15px;">No orders yet</div></td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:40px;color:#aaa;">⏳ Loading...</td></tr>`;
+  try {
+    const orders = await APP.getOrders();
+    set('nb-orders', orders.length);
+    if (!orders.length) {
+      tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:60px;color:#aaa;"><div style="font-size:36px;margin-bottom:12px;">📦</div><div style="font-weight:700;font-size:15px;">No orders yet</div></td></tr>`;
+      return;
+    }
+
+    // Fetch payments individually per order to avoid IN filter issues
+    const payMap = {};
+    const payments = await APP.getAllPayments();
+    payments.forEach(p => { payMap[p.order_id] = p; });
+
+    const sc = { Processing:'processing', 'In Transit':'transit', Delivered:'delivered', Cancelled:'inactive-p' };
+    const ps = { Completed:'pay-completed', Pending:'pay-pending', Failed:'pay-failed' };
+
+    tbody.innerHTML = orders.map(o => {
+      const pay     = payMap[o.id];
+      const method  = pay && pay.payment_method ? pay.payment_method.toUpperCase() : '—';
+      const pStatus = pay && pay.payment_status ? pay.payment_status : '—';
+      const psClass = ps[pStatus] || 'pay-pending';
+      return `
+      <tr>
+        <td><span class="idbadge">${o.id}</span></td>
+        <td style="font-weight:600;">${o.customer_name}</td>
+        <td>${o.part_name}</td>
+        <td style="color:#888;">${o.shop_name}</td>
+        <td>${o.qty}</td>
+        <td class="orange" style="font-weight:700;">PKR ${Number(o.total).toLocaleString()}</td>
+        <td><span style="font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;background:#f0f0f0;color:#333;">${method}</span></td>
+        <td><span class="pay-status-pill ${psClass}">${pStatus}</span></td>
+        <td><span class="pill ${sc[o.status]||'processing'}">${o.status}</span></td>
+        <td style="color:#888;">${o.date}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    console.error('renderOrders error:', e);
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;padding:40px;color:#c93d00;">⚠️ Failed to load orders. Please try again.</td></tr>`;
+  }
+}
+
+/* ── PAYMENTS ── */
+async function renderPayments() {
+  const tbody = g('paymentsBody');
+  if (!tbody) return;
+  tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:#aaa;">⏳ Loading...</td></tr>`;
+
+  try {
+  const allPayments = await APP.getAllPayments();
+  const q           = (g('payQ')?.value      || '').toLowerCase();
+  const statusF     = g('payFilter')?.value  || '';
+  const methodF     = (g('payMethodFilter')?.value || '').toLowerCase();
+
+  // Stats
+  const completed = allPayments.filter(p => p.payment_status === 'Completed');
+  const pending   = allPayments.filter(p => p.payment_status === 'Pending');
+  const revenue   = completed.reduce((s, p) => s + Number(p.amount), 0);
+  set('pay-total-count',     allPayments.length);
+  set('pay-completed-count', completed.length);
+  set('pay-pending-count',   pending.length);
+  set('pay-revenue',         'PKR ' + revenue.toLocaleString());
+  set('nb-payments',         allPayments.length);
+
+  const filtered = allPayments.filter(p => {
+    const pm = (p.payment_method || '').toLowerCase();
+    const ps_ = p.payment_status || '';
+    const mq = !q      || (p.id||'').toLowerCase().includes(q) || (p.order_id||'').toLowerCase().includes(q) || pm.includes(q);
+    const ms = !statusF || ps_ === statusF;
+    const mm = !methodF || pm === methodF;
+    return mq && ms && mm;
+  });
+
+  set('payCount', filtered.length + ' payment' + (filtered.length !== 1 ? 's' : ''));
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:60px;color:#aaa;"><div style="font-size:36px;margin-bottom:12px;">💳</div><div style="font-weight:700;font-size:15px;">No payments found</div></td></tr>`;
     return;
   }
-  const sc = { Processing:'processing', 'In Transit':'transit', Delivered:'delivered', Cancelled:'inactive-p' };
-  tbody.innerHTML = orders.map(o => `
+
+  const ps = { Completed:'pay-completed', Pending:'pay-pending', Failed:'pay-failed' };
+  tbody.innerHTML = filtered.map(p => `
     <tr>
-      <td><span class="idbadge">${o.id}</span></td>
-      <td style="font-weight:600;">${o.customer_name}</td>
-      <td>${o.part_name}</td>
-      <td style="color:#888;">${o.shop_name}</td>
-      <td>${o.qty}</td>
-      <td class="orange" style="font-weight:700;">PKR ${Number(o.total).toLocaleString()}</td>
-      <td><span class="pill ${sc[o.status]||'processing'}">${o.status}</span></td>
-      <td style="color:#888;">${o.date}</td>
+      <td><span class="idbadge">${p.id}</span></td>
+      <td><span class="idbadge" style="background:#333;">${p.order_id}</span></td>
+      <td class="orange" style="font-weight:700;">PKR ${Number(p.amount).toLocaleString()}</td>
+      <td><span style="font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;background:#f0f0f0;color:#333;">${(p.payment_method || '—').toUpperCase()}</span></td>
+      <td><span class="pay-status-pill ${ps[p.payment_status]||'pay-pending'}">${p.payment_status || '—'}</span></td>
+      <td style="color:#888;">${p.payment_date}</td>
+      <td>
+        ${p.payment_status === 'Pending'
+          ? `<button class="verify-btn" onclick="markPaymentComplete('${p.id}')">✓ Mark Paid</button>`
+          : '<span style="color:#aaa;font-size:12px;">—</span>'}
+      </td>
     </tr>`).join('');
+  } catch (e) {
+    console.error('renderPayments error:', e);
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:#c93d00;">⚠️ Failed to load payments. Please try again.</td></tr>`;
+  }
+}
+
+async function markPaymentComplete(payId) {
+  await APP.updatePaymentStatus(payId, 'Completed');
+  await renderPayments();
+  showToast('✓ Payment marked as Completed');
 }
 
 /* ── REVIEWS ── */
@@ -256,7 +376,22 @@ function showConfirm(icon, title, desc, onConfirm) {
 function confirmLogout() { g('logoutModal').style.display = 'flex'; }
 function doLogout()      { closeModal(); APP.clearSession(); setTimeout(() => location.href = '/Login/login.HTML', 400); }
 function closeModal()    { document.querySelectorAll('.modal-ov').forEach(m => m.style.display = 'none'); }
-function toggleSidebar() { g('sidebar')?.classList.toggle('open'); }
+function toggleSidebar() {
+  const isOpen = g('sidebar')?.classList.contains('open');
+  isOpen ? closeSidebar() : openSidebar();
+}
+function openSidebar() {
+  g('sidebar')?.classList.add('open');
+  g('sidebarOverlay')?.classList.add('active');
+  const btn = g('sidebarToggleBtn');
+  if (btn) btn.innerHTML = '&#x2715;';
+}
+function closeSidebar() {
+  g('sidebar')?.classList.remove('open');
+  g('sidebarOverlay')?.classList.remove('active');
+  const btn = g('sidebarToggleBtn');
+  if (btn) btn.innerHTML = '&#9776;';
+}
 
 let _tt;
 function showToast(msg) {

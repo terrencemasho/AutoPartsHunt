@@ -6,11 +6,16 @@
   <title>Admin Dashboard — Auto Parts Hunt</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;900&display=swap" rel="stylesheet"/>
   <link rel="stylesheet" href="admin2_style.css"/>
+  <link rel="icon" type="image/png" href="/favicon.png">
 </head>
 <body>
 
+  <!-- Overlay closes sidebar when tapping outside on mobile -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
   <!-- ══ SIDEBAR ══ -->
   <aside class="sidebar" id="sidebar">
+    <button class="sidebar-close" onclick="closeSidebar()">&#x2715;</button>
     <div class="sb-logo">
       <span class="lo-a">AUTO</span><span class="lo-p">PARTS</span>
       <div class="lo-h">HUNT</div>
@@ -29,7 +34,7 @@
       <div class="nav-group">MANAGEMENT</div>
       <a href="#" class="nav-item active" onclick="showSec('shops',this)">
         <span class="ni">🏪</span> Shops
-        <span class="nbadge orange-b" id="nb-pending">0</span>
+        <span class="nbadge orange-b" id="nb-shops">0</span>
       </a>
       <a href="#" class="nav-item" onclick="showSec('users',this)">
         <span class="ni">👥</span> Users
@@ -42,6 +47,10 @@
       <a href="#" class="nav-item" onclick="showSec('orders',this)">
         <span class="ni">📦</span> Orders
         <span class="nbadge" id="nb-orders">0</span>
+      </a>
+      <a href="#" class="nav-item" onclick="showSec('payments',this)">
+        <span class="ni">💳</span> Payments
+        <span class="nbadge" id="nb-payments">0</span>
       </a>
       <a href="#" class="nav-item" onclick="showSec('reviews',this)">
         <span class="ni">⭐</span> Reviews
@@ -59,7 +68,7 @@
   <main class="main">
 
     <div class="topbar">
-      <button class="tog-btn" onclick="toggleSidebar()">☰</button>
+      <button class="tog-btn" id="sidebarToggleBtn" onclick="toggleSidebar()">&#9776;</button>
       <div class="tb-title" id="tbTitle">Shops Management</div>
       <div class="tb-right">
         <div class="clock-chip" id="clock"></div>
@@ -166,11 +175,54 @@
         <div class="tbl-wrap">
           <table class="dtbl">
             <thead>
-              <tr><th>ORDER ID</th><th>CUSTOMER</th><th>PART</th><th>SHOP</th><th>QTY</th><th>TOTAL</th><th>STATUS</th><th>DATE</th></tr>
+              <tr><th>ORDER ID</th><th>CUSTOMER</th><th>PART</th><th>SHOP</th><th>QTY</th><th>TOTAL</th><th>METHOD</th><th>PAY STATUS</th><th>ORDER STATUS</th><th>DATE</th></tr>
             </thead>
             <tbody id="adminOrdersBody"></tbody>
           </table>
         </div>
+      </div>
+    </section>
+
+    <!-- ══════ PAYMENTS ══════ -->
+    <section class="sec" id="sec-payments">
+      <div class="sec-head">
+        <div class="ptag">PAYMENT ENTITY</div>
+        <h2 class="ptitle">ALL PAYMENTS</h2>
+      </div>
+      <div class="panel">
+        <!-- Stats row -->
+        <div class="stats-row" style="margin-bottom:20px;">
+          <div class="scard"><div class="sv" id="pay-total-count">0</div><div class="sl">TOTAL</div></div>
+          <div class="scard"><div class="sv orange" id="pay-completed-count">0</div><div class="sl">COMPLETED</div></div>
+          <div class="scard"><div class="sv" id="pay-pending-count">0</div><div class="sl">PENDING (COD)</div></div>
+          <div class="scard"><div class="sv orange" id="pay-revenue">PKR 0</div><div class="sl">TOTAL REVENUE</div></div>
+        </div>
+        <!-- Filter bar -->
+        <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+          <input type="text" class="ls-input" id="payQ" placeholder="Search order ID, method..." oninput="renderPayments()" style="flex:1;min-width:180px;"/>
+          <select class="ls-sel" id="payFilter" onchange="renderPayments()">
+            <option value="">All Statuses</option>
+            <option value="Completed">Completed</option>
+            <option value="Pending">Pending</option>
+            <option value="Failed">Failed</option>
+          </select>
+          <select class="ls-sel" id="payMethodFilter" onchange="renderPayments()">
+            <option value="">All Methods</option>
+            <option value="cod">COD</option>
+            <option value="card">Card</option>
+            <option value="easypaisa">Easypaisa</option>
+            <option value="jazzcash">JazzCash</option>
+          </select>
+        </div>
+        <div class="tbl-wrap">
+          <table class="dtbl">
+            <thead>
+              <tr><th>PAYMENT ID</th><th>ORDER ID</th><th>AMOUNT</th><th>METHOD</th><th>STATUS</th><th>DATE</th><th>ACTION</th></tr>
+            </thead>
+            <tbody id="paymentsBody"></tbody>
+          </table>
+        </div>
+        <div class="tbl-footer"><span id="payCount">0 payments</span></div>
       </div>
     </section>
 
