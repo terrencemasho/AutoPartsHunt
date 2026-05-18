@@ -22,7 +22,7 @@ header {
   padding: 0 25px;
   background: rgba(255, 255, 255, 0.6);
   backdrop-filter: blur(10px);
-  border: 2px solid rgba(33, 13, 251, 0.979);
+  border: 2px solid #E84800;
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
 }
 
@@ -31,21 +31,41 @@ header {
   width: auto;
 }
 
-.link {
-  display: flex;
-  gap: 2rem;
-}
-
-a {
+.link a {
   text-decoration: none;
-  font-size: 20px;
-  color: black;
-  font-weight: bold;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 30px;
+  display: inline-block;
+  transition: all 0.3s ease;
 }
 
-a:hover {
-  color: blue;
+/* FILLED BUTTON (Start Shopping style) */
+.nav-filled {
+  background-color: #E84800;
+  color: #fff;
+  border: none;
 }
+
+.nav-filled:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0px 10px 25px rgba(232,72,0,0.35);
+}
+
+/* OUTLINE BUTTON (Join Free style) */
+.nav-outline {
+  background: transparent;
+  color: #111;
+  border: 2px solid #111;
+}
+
+.nav-outline:hover {
+  background: #111;
+  color: #fff;
+  transform: translateY(-3px);
+}
+
 
 /* ── HERO ── */
 .container {
