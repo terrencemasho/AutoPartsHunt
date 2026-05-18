@@ -7,53 +7,73 @@ const SUPA_URL = 'https://vfvouexomhdwvmyleqgt.supabase.co';
 const SUPA_KEY = 'sb_publishable_m7w-T-6qNdJilO0iQ5k1jQ_s0oodZQh';
 
 const DB = {
-  async query(table, options = {}) {
+  _fetch(url, opts, timeoutMs) {
+    timeoutMs = timeoutMs || 12000;
+    const controller = new AbortController();
+    const timer = setTimeout(function(){ controller.abort(); }, timeoutMs);
+    return fetch(url, Object.assign({}, opts, { signal: controller.signal }))
+      .finally(function(){ clearTimeout(timer); });
+  },
+
+  async query(table, options) {
+    options = options || {};
     let url = `${SUPA_URL}/rest/v1/${table}`;
     const params = [];
     if (options.select) params.push(`select=${options.select}`);
     if (options.filter) params.push(options.filter);
     if (options.order)  params.push(`order=${options.order}`);
     if (params.length)  url += '?' + params.join('&');
-    const res = await fetch(url, {
-      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
-    });
-    if (!res.ok) { console.error('DB query error', await res.text()); return []; }
-    return res.json();
+    try {
+      const res = await this._fetch(url, {
+        headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
+      });
+      if (!res.ok) { console.error('DB query error', await res.text()); return []; }
+      return res.json();
+    } catch (e) {
+      console.error('DB query failed/timeout:', table, e.message);
+      return [];
+    }
   },
 
   async insert(table, data) {
-    const res = await fetch(`${SUPA_URL}/rest/v1/${table}`, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY,
-        'Content-Type': 'application/json', 'Prefer': 'return=representation'
-      },
-      body: JSON.stringify(data)
-    });
-    if (!res.ok) { console.error('DB insert error', await res.text()); return null; }
-    const result = await res.json();
-    return Array.isArray(result) ? result[0] : result;
+    try {
+      const res = await this._fetch(`${SUPA_URL}/rest/v1/${table}`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY,
+          'Content-Type': 'application/json', 'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(data)
+      });
+      if (!res.ok) { console.error('DB insert error', await res.text()); return null; }
+      const result = await res.json();
+      return Array.isArray(result) ? result[0] : result;
+    } catch (e) { console.error('DB insert failed/timeout:', table, e.message); return null; }
   },
 
   async update(table, filter, data) {
-    const res = await fetch(`${SUPA_URL}/rest/v1/${table}?${filter}`, {
-      method: 'PATCH',
-      headers: {
-        'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY,
-        'Content-Type': 'application/json', 'Prefer': 'return=representation'
-      },
-      body: JSON.stringify(data)
-    });
-    if (!res.ok) { console.error('DB update error', await res.text()); return null; }
-    return res.json();
+    try {
+      const res = await this._fetch(`${SUPA_URL}/rest/v1/${table}?${filter}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY,
+          'Content-Type': 'application/json', 'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(data)
+      });
+      if (!res.ok) { console.error('DB update error', await res.text()); return null; }
+      return res.json();
+    } catch (e) { console.error('DB update failed/timeout:', table, e.message); return null; }
   },
 
   async delete(table, filter) {
-    const res = await fetch(`${SUPA_URL}/rest/v1/${table}?${filter}`, {
-      method: 'DELETE',
-      headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
-    });
-    return res.ok;
+    try {
+      const res = await this._fetch(`${SUPA_URL}/rest/v1/${table}?${filter}`, {
+        method: 'DELETE',
+        headers: { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY }
+      });
+      return res.ok;
+    } catch (e) { console.error('DB delete failed/timeout:', table, e.message); return false; }
   }
 };
 
@@ -122,10 +142,18 @@ const APP = {
   /* ── USERS ── */
   async getUsers()         { return DB.query('users'); },
   async updateUser(id, d)  { return DB.update('users', `id=eq.${id}`, d); },
+  async getUserById(userId) {
+    const r = await DB.query('users', { filter: `id=eq.${userId}` });
+    return r[0] || null;
+  },
 
   /* ── SHOPS ── */
   async getShops()         { return DB.query('shops'); },
   async updateShop(id, d)  { return DB.update('shops', `id=eq.${id}`, d); },
+  async getShopById(shopId) {
+    const r = await DB.query('shops', { filter: `id=eq.${shopId}` });
+    return r[0] || null;
+  },
   async getShopByUserId(userId) {
     const r = await DB.query('shops', { filter: `user_id=eq.${userId}` });
     return r[0] || null;
@@ -185,6 +213,58 @@ const APP = {
 
   async updateOrderStatus(orderId, status) { return DB.update('orders', `id=eq.${orderId}`, { status }); },
   async markOrderReviewed(orderId)         { return DB.update('orders', `id=eq.${orderId}`, { reviewed: true }); },
+
+  /* ── PAYMENTS ── */
+  async insertPayment(data) {
+    return DB.insert('payments', {
+      id:             'PAY-' + Date.now(),
+      order_id:       data.orderId,
+      payment_date:   new Date().toLocaleDateString('en-PK'),
+      amount:         Number(data.amount),
+      payment_method: (data.paymentMethod || 'COD').toUpperCase(),
+      payment_status: data.paymentStatus || 'Completed'
+    });
+  },
+
+  async getPaymentByOrder(orderId) {
+    const r = await DB.query('payments', { filter: `order_id=eq.${orderId}` });
+    return r[0] || null;
+  },
+
+  async getPaymentsByOrders(orderIds) {
+    if (!orderIds.length) return [];
+    // Supabase IN filter for text PKs — values unquoted
+    const ids    = orderIds.join(',');
+    const filter = `order_id=in.(${ids})`;
+    return DB.query('payments', { filter });
+  },
+
+  async getAllPayments() {
+    return DB.query('payments', { order: 'payment_date.desc' });
+  },
+
+  async updatePaymentStatus(paymentId, status) {
+    return DB.update('payments', `id=eq.${paymentId}`, { payment_status: status });
+  },
+
+
+  /* ── DELETE ACCOUNT (cascading) ── */
+  async deleteUserAccount(userId) {
+    // 1. Get user's shop (if shopkeeper)
+    const shops = await DB.query('shops', { filter: `user_id=eq.${userId}` });
+    for (const shop of shops) {
+      // 2. Delete all parts in each shop
+      const parts = await DB.query('parts', { filter: `shop_id=eq.${shop.id}` });
+      for (const part of parts) {
+        await DB.delete('parts', `id=eq.${part.id}`);
+      }
+      // 3. Delete the shop itself
+      await DB.delete('shops', `id=eq.${shop.id}`);
+    }
+    // 4. Delete the user
+    await DB.delete('users', `id=eq.${userId}`);
+    return { ok: true };
+  },
 
   /* ── REVIEWS ── */
   async getReviews()              { return DB.query('reviews', { order: 'timestamp.desc' }); },
